@@ -3,6 +3,10 @@ if exists('g:autoloaded_terminal#toggle_popup')
 endif
 let g:autoloaded_terminal#toggle_popup = 1
 
+" Inspiration:
+" https://github.com/junegunn/fzf/commit/7ceb58b2aadfcf0f5e99da83626cf88d282159b2
+" https://github.com/junegunn/fzf/commit/a859aa72ee0ab6e7ae948752906483e468a501ee
+
 " Init {{{1
 
 const s:OPTS = {
@@ -162,7 +166,24 @@ else "{{{2
             " depending  on  the  terminal  mode  has  not  been  installed  yet.
             " `s:dynamic_frame_color()` will be invoked later.
             "}}}
-            au SafeState * ++once if exists('#User#TermEnter') | do <nomodeline> User TermEnter | endif
+            " Why inspecting `mode()`?{{{
+            "
+            " Initially, the frame is highlighted by `s:OPTS.term_normal_highlight`.
+            " This autocmd resets the highlighting to `s:OPTS.term_job_highlight`.
+            " This is  correct the first  time we  toggle the popup  on, because
+            " we're automatically in Terminal-Job mode.
+            " Afterwards,  this  is  wrong;  we're no  longer  automatically  in
+            " Terminal-Job mode; we stay in Terminal-Normal mode.
+            "
+            " I *think* that when you display  a *new* terminal buffer, Vim puts
+            " you in Terminal-Job mode automatically.
+            " OTOH, when you display an *existing* terminal buffer, Vim probably
+            " remembers the last mode you were in.
+            "}}}
+            au SafeState * ++once
+                \   if exists('#User#TermEnter') && mode() is# 't'
+                \ |     do <nomodeline> User TermEnter
+                \ | endif
         endif
 
         return [winbufnr(id), id]
