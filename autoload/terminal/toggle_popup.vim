@@ -93,9 +93,8 @@ fu terminal#toggle_popup#main() abort "{{{2
     endif
 
     call s:dynamic_frame_color(frame_winid)
+    call s:persistent_view()
 
-    " Vim doesn't restore the cursor position, nor the topline.  Nvim restores the cursor, but not the topline.
-    if exists('s:view') | call winrestview(s:view) | endif
     if !exists('s:popup_bufnr') | let s:popup_bufnr = term_bufnr | endif
 endfu
 "}}}1
@@ -191,6 +190,7 @@ else "{{{2
     "}}}2
 endif
 fu s:close(...) abort "{{{2
+    let s:view = winsaveview()
     if has('nvim')
         if a:0
             let curwinid = win_getid()
@@ -201,7 +201,6 @@ fu s:close(...) abort "{{{2
             close
         endif
     else
-        let s:view = winsaveview()
         call popup_close(win_getid())
     endif
 endfu
@@ -288,9 +287,59 @@ fu s:dynamic_frame_color(frame_winid) abort "{{{2
         endif
     augroup END
 endfu
+
+fu s:persistent_view() abort "{{{2
+    " make the view persistent when we enter/leave Terminal-Job mode
+    if has('nvim')
+        " TODO: Remove this function call once `'scrolloff'` becomes window-local (cf. PR #11854).
+        call s:handle_scrolloff()
+        au TermLeave <buffer> let s:_view = winsaveview()
+            \ | call timer_start(0, {-> exists('s:_view') && winrestview(s:_view)})
+    else
+        " FIXME: still some edge-cases:{{{
+        "
+        "     C-g C-g
+        "     $ infocmp -1x
+        "     Esc Esc
+        "     i
+        "     $ ls
+        "     Esc Esc  " unexpected view
+        "
+        " ---
+        "
+        "     C-g C-g
+        "     $ infocmp -1x
+        "     C-l
+        "     Esc Esc  " unexpected view
+        "     gg
+        "     i
+        "     Esc Esc  " unexpected view
+        "     i        " unexpected view
+        "}}}
+        au User TermLeave let s:_view = winsaveview()
+            \ | au SafeState * ++once if exists('s:_view') | call winrestview(s:_view) | endif
+    endif
+
+    " Make the view persistent when we toggle the window on and off.{{{
+    "
+    " By  default, Vim  doesn't seem  to restore  the cursor  position, nor  the
+    " topline.  Nvim restores the cursor, but not the topline.
+    "}}}
+    if exists('s:view') | call winrestview(s:view) | endif
+endfu
 "}}}1
 " Util {{{1
 fu s:is_popup_terminal_on() abort "{{{2
     return index(map(getwininfo(), {_,v -> getbufvar(v.bufnr, 'popup_terminal')}), v:true) != -1
+endfu
+
+fu s:handle_scrolloff() abort "{{{2
+    au! terminal_disable_scrolloff * <buffer>
+    set so=0
+    augroup popup_terminal_toggle_scrolloff
+        au! * <buffer>
+        au WinLeave <buffer> set so=3
+        au WinEnter <buffer> set so=0
+    augroup END
 endfu
 

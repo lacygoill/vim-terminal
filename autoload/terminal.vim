@@ -15,9 +15,13 @@ fu terminal#setup_neovim() abort "{{{1
     "
     " Anyway, let's reset the option in a terminal window to avoid any issue.
     "}}}
-    " TODO: Remove these 2 autocmds once the PR #11854 is merged.  Replace them with a single `setl so=0`.
-    au TermEnter <buffer> setlocal scrolloff=0
-    au TermLeave <buffer> setlocal scrolloff=3
+    " TODO: Remove this autocmd once `'scrolloff'` becomes window-local (cf. PR #11854).
+    " Replace it with a single `:setlocal so=0`.
+    augroup terminal_disable_scrolloff
+        au! * <buffer>
+        au TermEnter <buffer> set scrolloff=0
+        au TermLeave <buffer> set scrolloff=3
+    augroup END
 
     nno <buffer><nowait><silent> I  I<c-a>
     nno <buffer><nowait><silent> A  A<c-e>
@@ -102,18 +106,5 @@ fu terminal#fire_termleave() abort "{{{1
     if exists('#User#TermLeave')
         do <nomodeline> User TermLeave
     endif
-    " Sometimes, the view is altered.{{{
-    "
-    "    1. open a popup terminal
-    "    2. run `$ ls` a few times (enough to get a full screen of output)
-    "    4. escape to terminal-normal mode
-    "    6. re-enter terminal-job mode
-    "    8. run `$ ls` one more time
-    "    10. re-escape to terminal-normal mode
-    "
-    " The topline changes.
-    " We don't want that; `zb` should preserve the view.
-    "}}}
-    norm! zb
 endfu
 
