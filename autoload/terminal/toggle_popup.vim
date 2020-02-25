@@ -291,7 +291,16 @@ endfu
 fu s:persistent_view() abort "{{{2
     " make the view persistent when we enter/leave Terminal-Job mode
     if has('nvim')
-        " TODO: Remove this function call once `'scrolloff'` becomes window-local (cf. PR #11854).
+        " TODO: Remove this function call, and the autocmd, once `'scrolloff'` becomes window-local (cf. PR #11854).{{{
+        "
+        " If  you  sometimes  notice  that  the view  is  altered  when  leaving
+        " Terminal-Job mode, it's probably because of our autocmd which restores
+        " the global value of `'so'` to 3.
+        "
+        " Don't try to fix that.  You probably can't.
+        " Just wait for  the PR to be  merged, remove the code  here, then check
+        " whether the view is still altered.
+        "}}}
         call s:handle_scrolloff()
         au TermLeave <buffer> let s:_view = winsaveview()
             \ | call timer_start(0, {-> exists('s:_view') && winrestview(s:_view)})
@@ -315,6 +324,9 @@ fu s:persistent_view() abort "{{{2
         "     i
         "     Esc Esc  " unexpected view
         "     i        " unexpected view
+        "
+        " Update: Actually, I think those are due to a Vim bug.
+        " Find a MWE, then report the issue.
         "}}}
         au User TermLeave let s:_view = winsaveview()
             \ | au SafeState * ++once if exists('s:_view') | call winrestview(s:_view) | endif
@@ -324,6 +336,12 @@ fu s:persistent_view() abort "{{{2
     "
     " By  default, Vim  doesn't seem  to restore  the cursor  position, nor  the
     " topline.  Nvim restores the cursor, but not the topline.
+    "}}}
+    " We already have an autocmd restoring the view in `vim-window`.  Why is this necessary?{{{
+    "
+    " This autocmd doesn't work for special buffers (including terminal buffers).
+    " Besides, it can only work when you re-display a buffer in the same window.
+    " That's not what is happening here; we re-display a buffer in a *new* window.
     "}}}
     if exists('s:view') | call winrestview(s:view) | endif
 endfu

@@ -15,8 +15,8 @@ fu terminal#setup_neovim() abort "{{{1
     "
     " Anyway, let's reset the option in a terminal window to avoid any issue.
     "}}}
-    " TODO: Remove this autocmd once `'scrolloff'` becomes window-local (cf. PR #11854).
-    " Replace it with a single `:setlocal so=0`.
+    " TODO: Replace these autocmds with a single `:setlocal so=0`, once `'scrolloff'` becomes window-local.
+    " (cf. PR #11854)
     augroup terminal_disable_scrolloff
         au! * <buffer>
         au TermEnter <buffer> set scrolloff=0
