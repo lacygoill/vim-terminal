@@ -18,9 +18,9 @@ const s:OPTS = {
     \ 'xoffset': 0.5,
     "\ the closer to 1 the lower the window
     \ 'yoffset': 0.5,
-    "\ frame color when in terminal-normal mode
+    "\ border color when in terminal-normal mode
     \ 'term_normal_highlight': 'Title',
-    "\ frame color when in terminal-job mode
+    "\ border color when in terminal-job mode
     \ 'term_job_highlight': 'Comment',
     \ }
 
@@ -40,18 +40,10 @@ call s:sanitize()
 
 " Interface {{{1
 fu terminal#toggle_popup#main() abort "{{{2
-    " close popup terminal window if one already exists
+    " close popup terminal window if it's already on
     if exists('b:popup_terminal')
         return s:close()
-    " In Nvim, we can toggle several windows on.{{{
-    "
-    " This can create a whole lot of issues.
-    "
-    " Solution: make sure there is only 1 window per Vim instance.
-    " In the  future, you could  try 1  window per tab  page; but that  would be
-    " inconsistent with  Vim, where you can  only have 1 popup  terminal per Vim
-    " instance.
-    "}}}
+    " in Nvim, the popup terminal window is not necessarily the current window
     elseif has('nvim') && s:is_popup_terminal_on()
         call s:close(s:popup_winid)
     endif
@@ -64,56 +56,74 @@ fu terminal#toggle_popup#main() abort "{{{2
     " same as when this function is invoked.
     "
     " For example, if  you move these assignments directly to  the script level,
-    " and execute `:LogEvents`,  then toggle the terminal window  on, you should
-    " see that the frame is wrong.
+    " and execute  `:LogEvents`, then toggle  the popup terminal window  on, you
+    " should see that the border is wrong.
     "}}}
     let [width, height, row, col] = s:get_term_geometry()
-    let frame = s:get_frame(width, height)
 
-    " create frame
-    let [frame_bufnr, frame_winid] = s:popup(s:OPTS.term_normal_highlight, {
-        \ 'row': row,
-        \ 'col': col,
-        \ 'width': width,
-        \ 'height': height,
-        \ 'frame': frame,
-        \ })
-
-    " create terminal
-    let [term_bufnr, _] = s:popup('Normal', {
-        \ 'row': row + 1,
-        \ 'col': col + 2,
-        \ 'width': width - 4,
-        \ 'height': height - 2,
-        \ })
     if has('nvim')
-        call s:load_terminal_buffer()
-        call s:wipe_frame_buffer_when_toggling_off(frame_bufnr)
+        " create border
+        let border = s:get_border(width, height)
+        let [border_bufnr, border_winid] = s:popup({
+            \ 'width': width,
+            \ 'height': height,
+            \ 'row': row,
+            \ 'col': col,
+            \ 'hl': s:OPTS.term_normal_highlight,
+            \ 'border': border,
+            \ })
+        " create float
+        let [term_bufnr, _] = s:popup({
+            \ 'width': width - 4,
+            \ 'height': height - 2,
+            \ 'row': row + 1,
+            \ 'col': col + 2,
+            \ 'hl': 'Normal',
+            \ })
+        call s:wipe_border_when_toggling_off(border_bufnr)
         let s:popup_winid = win_getid()
+        call s:dynamic_border_color(border_winid)
+    else
+        let [term_bufnr, term_winid] = s:popup({
+            \ 'width': width - 4,
+            \ 'height': height - 2,
+            \ 'row': row + 1,
+            \ 'col': col + 2,
+            \ })
+        call s:dynamic_border_color(term_winid)
     endif
 
-    call s:dynamic_frame_color(frame_winid)
     call s:persistent_view()
-
     if !exists('s:popup_bufnr') | let s:popup_bufnr = term_bufnr | endif
 endfu
 "}}}1
 " Core {{{1
 if has('nvim')
-    fu s:popup(hl, opts) abort "{{{2
-        let bufnr = nvim_create_buf(v:false, v:true)
+    fu s:popup(opts) abort "{{{2
         let opts = extend({'relative': 'editor', 'style': 'minimal'}, a:opts)
-        let frame = has_key(opts, 'frame') ? remove(opts, 'frame') : []
+        let is_border = has_key(opts, 'border')
+        let border = is_border ? remove(opts, 'border') : []
+        if is_border || !exists('s:popup_bufnr')
+            let bufnr = nvim_create_buf(v:false, v:true)
+        else
+            let bufnr = s:popup_bufnr
+        endif
+        " open window
+        let hl = remove(opts, 'hl')
         let winid = nvim_open_win(bufnr, v:true, opts)
-        call setwinvar(winid, '&winhighlight', 'NormalFloat:'..a:hl)
-        if !empty(frame)
-          call nvim_buf_set_lines(bufnr, 0, -1, v:true, frame)
+        " highlight background
+        call setwinvar(winid, '&winhighlight', 'NormalFloat:'..hl)
+        if is_border
+            call nvim_buf_set_lines(bufnr, 0, -1, v:true, border)
+        elseif !exists('s:popup_bufnr')
+            " `termopen()` does not create a new buffer; it converts the current buffer into a terminal buffer
+            call termopen(&shell)
+            let b:popup_terminal = v:true
         endif
         return [bufnr, winid]
     endfu
 else "{{{2
-    fu s:popup(hl, opts) abort "{{{2
-        let is_frame = has_key(a:opts, 'frame')
+    fu s:popup(opts) abort "{{{2
         " Do *not* use `get()`.{{{
         "
         "     let bufnr = get(s:, 'bufnr', term_start(&shell, #{hidden: 1}))
@@ -122,9 +132,7 @@ else "{{{2
         " created.  This is because  `term_start()` is evaluated before `get()`.
         " IOW, before `get()` checks whether `s:popup_bufnr` exists.
         "}}}
-        if is_frame
-            let bufnr = ''
-        elseif exists('s:popup_bufnr')
+        if exists('s:popup_bufnr')
             let bufnr = s:popup_bufnr
         else
             let bufnr = term_start(&shell, #{hidden: v:true})
@@ -136,56 +144,30 @@ else "{{{2
         " Otherwise, when  we scroll back  in a  long shell command  output, the
         " terminal buffer contents goes beyond the end of the window.
         "}}}
-        let id = popup_create(bufnr, #{
+        let winid = popup_create(bufnr, #{
             \ line: a:opts.row,
             \ col: a:opts.col,
             \ minwidth: a:opts.width,
             \ maxwidth: a:opts.width,
             \ minheight: a:opts.height,
             \ maxheight: a:opts.height,
-            \ zindex: 50 - is_frame,
+            \ highlight: 'Normal',
+            \ border: [],
+            \ borderhighlight: [s:OPTS.term_normal_highlight],
+            \ borderchars: ['─', '│', '─', '│', '┌', '┐', '┘', '└'],
+            \ padding: [0, 1, 0, 1],
+            \ zindex: 50,
             \ })
 
-        call setwinvar(id, '&wincolor', a:hl)
+        " Install our custom terminal settings as soon as the terminal buffer is displayed in a window.{{{
+        "
+        " Useful, for example,  to get our `Esc Esc` key  binding, and for `M-p`
+        " to work (i.e. recall latest command starting with current prefix).
+        "}}}
+        if exists('#TerminalWinOpen') | do <nomodeline> TerminalWinOpen | endif
+        if exists('#User#TermEnter') | do <nomodeline> User TermEnter | endif
 
-        if is_frame
-            call setbufline(winbufnr(id), 1, a:opts.frame)
-            exe 'au BufWipeout,BufHidden * ++once call popup_close('..id..')'
-        else
-            " Install our custom terminal settings as soon as the terminal buffer is displayed in a window.{{{
-            "
-            " Useful, for  example, to get  our `Esc  Esc` key binding,  and for
-            " `M-p` to  work (i.e. recall  latest command starting  with current
-            " prefix).
-            "}}}
-            if exists('#TerminalWinOpen') | do <nomodeline> TerminalWinOpen | endif
-            " Why the delay?{{{
-            "
-            " The   `TermEnter`   autocmd   which  updates   the   frame   color
-            " depending  on  the  terminal  mode  has  not  been  installed  yet.
-            " `s:dynamic_frame_color()` will be invoked later.
-            "}}}
-            " Why inspecting `mode()`?{{{
-            "
-            " Initially, the frame is highlighted by `s:OPTS.term_normal_highlight`.
-            " This autocmd resets the highlighting to `s:OPTS.term_job_highlight`.
-            " This is  correct the first  time we  toggle the popup  on, because
-            " we're automatically in Terminal-Job mode.
-            " Afterwards,  this  is  wrong;  we're no  longer  automatically  in
-            " Terminal-Job mode; we stay in Terminal-Normal mode.
-            "
-            " I *think* that when you display  a *new* terminal buffer, Vim puts
-            " you in Terminal-Job mode automatically.
-            " OTOH, when you display an *existing* terminal buffer, Vim probably
-            " remembers the last mode you were in.
-            "}}}
-            au SafeState * ++once
-                \   if exists('#User#TermEnter') && mode() is# 't'
-                \ |     do <nomodeline> User TermEnter
-                \ | endif
-        endif
-
-        return [winbufnr(id), id]
+        return [winbufnr(winid), winid]
     endfu
     "}}}2
 endif
@@ -205,12 +187,12 @@ fu s:close(...) abort "{{{2
     endif
 endfu
 
-fu s:get_frame(width, height) abort "{{{2
+fu s:get_border(width, height) abort "{{{2
     let top = '┌'..repeat('─', a:width - 2)..'┐'
     let mid = '│'..repeat(' ', a:width - 2)..'│'
     let bot = '└'..repeat('─', a:width - 2)..'┘'
-    let frame = [top] + repeat([mid], a:height - 2) + [bot]
-    return frame
+    let border = [top] + repeat([mid], a:height - 2) + [bot]
+    return border
 endfu
 
 fu s:get_term_geometry() abort "{{{2
@@ -225,65 +207,52 @@ fu s:get_term_geometry() abort "{{{2
     "}}}
     let row = float2nr(s:OPTS.yoffset * (&lines - height))
     let col = float2nr(s:OPTS.xoffset * (&columns - width))
-    " Vim and Nvim don't start to count rows and columns from the same number.{{{
-    "
-    " From `:h popup_create-arguments /first line`:
-    "
-    " >     The first line is 1.
-    "
-    " From `:h popup_create-arguments /first column`:
-    "
-    " >     The first column is 1.
-    "
-    " From `:h nvim_open_win()`:
-    "
-    " >     With relative=editor (row=0,col=0) refers to the top-left
-    " >     corner of the screen-grid ...
-    "
-    " So, if `row` is 0 in Nvim (first screen line), it needs to be 1 in Vim.
-    "}}}
-    if !has('nvim')
-        let row += 1
-        let col += 1
-    endif
+    " to get the exact same position in Vim and Nvim
+    if !has('nvim') | let col -= 1 | endif
 
     return [width, height, row, col]
 endfu
 
-fu s:load_terminal_buffer() abort "{{{2
-    if exists('s:popup_bufnr')
-        exe 'b '..s:popup_bufnr
-        bw#
-    else
-        call termopen(&shell) | let b:popup_terminal = v:true
-    endif
-endfu
-
-fu s:wipe_frame_buffer_when_toggling_off(frame) abort "{{{2
-    augroup wipe_frame
+fu s:wipe_border_when_toggling_off(border) abort "{{{2
+    augroup wipe_border
         au! * <buffer>
         exe 'au BufHidden,BufWipeout <buffer> '
-            \ 'exe "au! wipe_frame * <buffer>" | bw '..a:frame
+            \ ..'exe "au! wipe_border * <buffer>" | bw '..a:border
     augroup END
 endfu
 
-fu s:dynamic_frame_color(frame_winid) abort "{{{2
-    augroup dynamic_frame_color
+fu s:dynamic_border_color(winid) abort "{{{2
+    augroup dynamic_border_color
         au! * <buffer>
         if has('nvim')
             exe 'au TermEnter <buffer> '
                 \ ..printf('call setwinvar(%d, "&winhighlight", "NormalFloat:%s")',
-                \ a:frame_winid, s:OPTS.term_job_highlight)
+                \ a:winid, s:OPTS.term_job_highlight)
             exe 'au TermLeave <buffer> '
                 \ ..printf('call setwinvar(%d, "&winhighlight", "NormalFloat:%s")',
-                \ a:frame_winid, s:OPTS.term_normal_highlight)
+                \ a:winid, s:OPTS.term_normal_highlight)
         else
-            exe 'au! User TermEnter '
-                \ ..printf('call setwinvar(%d, "&wincolor", "%s")',
-                \ a:frame_winid, s:OPTS.term_job_highlight)
+            let cmd = printf('call popup_setoptions(%d, %s)',
+                \ a:winid, {'borderhighlight': [s:OPTS.term_job_highlight]})
+            exe 'au! User TermEnter '..cmd
+            " Why inspecting `mode()`?{{{
+            "
+            " Initially, the border is highlighted by `s:OPTS.term_normal_highlight`.
+            " This command resets the highlighting to `s:OPTS.term_job_highlight`.
+            " This is correct  the first time we toggle the  popup on, because we're
+            " automatically in Terminal-Job mode.
+            " Afterwards,  this   is  wrong;   we're  no  longer   automatically  in
+            " Terminal-Job mode; we stay in Terminal-Normal mode.
+            "
+            " I *think* that when you display  a *new* terminal buffer, Vim puts you
+            " in Terminal-Job mode automatically.
+            " OTOH, when  you display  an *existing*  terminal buffer,  Vim probably
+            " remembers the last mode you were in.
+            "}}}
+            if mode() is# 't' | exe cmd | endif
             exe 'au! User TermLeave '
-                \ ..printf('call setwinvar(%d, "&wincolor", "%s")',
-                \ a:frame_winid, s:OPTS.term_normal_highlight)
+                \ ..printf('call popup_setoptions(%d, %s)',
+                \ a:winid, {'borderhighlight': [s:OPTS.term_normal_highlight]})
         endif
     augroup END
 endfu
@@ -304,32 +273,60 @@ fu s:persistent_view() abort "{{{2
         call s:handle_scrolloff()
         au TermLeave <buffer> let s:_view = winsaveview()
             \ | call timer_start(0, {-> exists('s:_view') && winrestview(s:_view)})
-    else
-        " FIXME: still some edge-cases:{{{
-        "
-        "     C-g C-g
-        "     $ infocmp -1x
-        "     Esc Esc
-        "     i
-        "     $ ls
-        "     Esc Esc  " unexpected view
-        "
-        " ---
-        "
-        "     C-g C-g
-        "     $ infocmp -1x
-        "     C-l
-        "     Esc Esc  " unexpected view
-        "     gg
-        "     i
-        "     Esc Esc  " unexpected view
-        "     i        " unexpected view
-        "
-        " Update: Actually, I think those are due to a Vim bug.
-        " Find a MWE, then report the issue.
-        "}}}
-        au User TermLeave let s:_view = winsaveview()
-            \ | au SafeState * ++once if exists('s:_view') | call winrestview(s:_view) | endif
+    endif
+
+    " FIXME: In Vim, the cursor position is often not preserved.{{{
+    "
+    "     C-g C-g
+    "     $ infocmp -1x
+    "     Esc Esc
+    "     i
+    "     $ ls
+    "     Esc Esc  " unexpected view
+    "
+    " ---
+    "
+    "     C-g C-g
+    "     $ infocmp -1x
+    "     C-l
+    "     Esc Esc  " unexpected view
+    "     gg
+    "     i
+    "     Esc Esc  " unexpected view
+    "     i        " unexpected view
+    "
+    " Don't try to install an autocmd like for Nvim; it doesn't work.
+    " This is a bug.
+    "
+    " I can also reproduce even without running any shell command; just quitting
+    " to Terminal-Normal mode once or twice.
+    " Note that in reality, the cursor position is correct; it's just "drawn"
+    " in the wrong position; if you press some motion key, you'll see that the cursor
+    " was in the correct position.  Vim doesn't seem to redraw enough.
+    "
+    " I can also reproduce without leaving Terminal-Normal mode.
+    " Just press `50%`, then `l`.
+    " Or just enter and  leave the Ex command-line (this one  is probably due to
+    " our custom mapping, but still...).
+    "
+    " The issue is influenced by the 'border' and 'padding' keys.
+    " And by:
+    "
+    "    - `'startofline'`
+    "    - the matchup plugin; probably because of the `%` mapping
+    "    - the readline plugin; because of an autocmd listening to `CmdlineEnter :` which invokes a timer:
+    "
+    "         au CmdlineEnter : call timer_start(0, {-> execute('')})
+    "
+    " Also, note that most (any?) custom normal command seem to alter the cursor
+    " position (even our custom `m` command).
+    "}}}
+    " temporary workaround
+    if !has('nvim')
+        if mode(1) is# 'n'
+            call timer_start(0, {-> s:fix_pos()})
+        endif
+        au User TermLeave call timer_start(0, {-> s:fix_pos()})
     endif
 
     " Make the view persistent when we toggle the window on and off.{{{
@@ -359,5 +356,11 @@ fu s:handle_scrolloff() abort "{{{2
         au WinLeave <buffer> set so=3
         au WinEnter <buffer> set so=0
     augroup END
+endfu
+
+fu s:fix_pos() abort "{{{2
+    let pos = getpos("'m")
+    call feedkeys('mmk`m', 'int')
+    call timer_start(0, {-> setpos("'m", pos)})
 endfu
 

@@ -66,6 +66,14 @@ fu terminal#setup_vim() abort "{{{1
     xno <buffer><nowait><silent> d <nop>
     xno <buffer><nowait><silent> p <nop>
     xno <buffer><nowait><silent> x <nop>
+
+    " suppress error: Vim(wincmd):E994: Not allowed in a popup window
+    if win_gettype() is# 'popup'
+        nno <buffer><nowait> <c-h> <nop>
+        nno <buffer><nowait> <c-j> <nop>
+        nno <buffer><nowait> <c-k> <nop>
+        nno <buffer><nowait> <c-l> <nop>
+    endif
 endfu
 
 fu s:fire_termenter(rhs) abort "{{{1
