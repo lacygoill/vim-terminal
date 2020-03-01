@@ -41,10 +41,10 @@ call s:sanitize()
 " Interface {{{1
 fu terminal#toggle_popup#main() abort "{{{2
     " close popup terminal window if it's already on
-    if exists('b:popup_terminal')
+    if exists('b:toggling_popup_term')
         return s:close()
     " in Nvim, the popup terminal window is not necessarily the current window
-    elseif has('nvim') && s:is_popup_terminal_on()
+    elseif has('nvim') && s:is_toggling_popup_term_on()
         call s:close(s:popup_winid)
     endif
 
@@ -61,116 +61,64 @@ fu terminal#toggle_popup#main() abort "{{{2
     "}}}
     let [width, height, row, col] = s:get_term_geometry()
 
+    " Why the difference?{{{
+    "
+    " Nvim doesn't support a border widget by default.
+    " We emulate it by creating 2 floats; the bigger one draws the border.
+    " We need to pass to `#popup#create()` the geometry of the border float.
+    " The latter function will derive the geometry of the "inner" float.
+    "
+    " OTOH, Vim does support a border widget by default.
+    " Such a widget changes the final geometry of the displayed popup window.
+    " It makes  it slightly bigger;  how much depends  on the values  inside the
+    " lists assigned to the keys `border` and `padding`.
+    " Here, we don't assign anything to  `border` nor to `padding`, however – by
+    " default –  `#popup#create()` assigns `[]`  to `border` and  `[0,1,0,1]` to
+    " `padding`.
+    "
+    " Anyway, we want the exact same geometry, whether we use Vim or Nvim.
+    " So we  need to take into  account the fact  that Vim will create  a bigger
+    " window; that is, we need to make it smaller, so that in the ends, with the
+    " added border, we get the exact same result as in Nvim.
+    "}}}
     if has('nvim')
-        " create border
-        let border = s:get_border(width, height)
-        let [border_bufnr, border_winid] = s:popup({
+        let opts = {
             \ 'width': width,
             \ 'height': height,
             \ 'row': row,
             \ 'col': col,
-            \ 'hl': s:OPTS.term_normal_highlight,
-            \ 'border': border,
-            \ })
-        " create float
-        let [term_bufnr, _] = s:popup({
-            \ 'width': width - 4,
-            \ 'height': height - 2,
-            \ 'row': row + 1,
-            \ 'col': col + 2,
-            \ 'hl': 'Normal',
-            \ })
-        call s:wipe_border_when_toggling_off(border_bufnr)
-        let s:popup_winid = win_getid()
-        call s:dynamic_border_color(border_winid)
+            \ }
     else
-        let [term_bufnr, term_winid] = s:popup({
+        let opts = {
             \ 'width': width - 4,
             \ 'height': height - 2,
             \ 'row': row + 1,
             \ 'col': col + 2,
-            \ })
-        call s:dynamic_border_color(term_winid)
+            \ }
     endif
+    call extend(opts, {'borderhighlight': s:OPTS.term_normal_highlight, 'term': v:true})
+    try
+        let [term_bufnr, term_winid; border] = lg#popup#create(get(s:, 'popup_bufnr', ''), opts)
+    catch /^Vim\%((\a\+)\)\=:E117:/
+        echohl ErrorMsg | echom 'need lg#popup#create(); install vim-lg-lib' | echohl NONE
+        return
+    endtry
+    " Don't try to get rid of this ad-hoc variable.{{{
+    "
+    " Yes, we should be able to detect a popup terminal without.
+    " But we're not interested in *any* popup terminal.
+    " We are interested in *our* custom popup terminal, which is toggled by `C-g C-g`.
+    "}}}
+    call setbufvar(term_bufnr, 'toggling_popup_term', v:true)
 
+    let s:popup_winid = term_winid
+
+    call s:dynamic_border_color(has('nvim') ? border[1] : term_winid)
     call s:persistent_view()
     if !exists('s:popup_bufnr') | let s:popup_bufnr = term_bufnr | endif
 endfu
 "}}}1
 " Core {{{1
-if has('nvim')
-    fu s:popup(opts) abort "{{{2
-        let opts = extend({'relative': 'editor', 'style': 'minimal'}, a:opts)
-        let is_border = has_key(opts, 'border')
-        let border = is_border ? remove(opts, 'border') : []
-        if is_border || !exists('s:popup_bufnr')
-            let bufnr = nvim_create_buf(v:false, v:true)
-        else
-            let bufnr = s:popup_bufnr
-        endif
-        " open window
-        let hl = remove(opts, 'hl')
-        let winid = nvim_open_win(bufnr, v:true, opts)
-        " highlight background
-        call setwinvar(winid, '&winhighlight', 'NormalFloat:'..hl)
-        if is_border
-            call nvim_buf_set_lines(bufnr, 0, -1, v:true, border)
-        elseif !exists('s:popup_bufnr')
-            " `termopen()` does not create a new buffer; it converts the current buffer into a terminal buffer
-            call termopen(&shell)
-            let b:popup_terminal = v:true
-        endif
-        return [bufnr, winid]
-    endfu
-else "{{{2
-    fu s:popup(opts) abort "{{{2
-        " Do *not* use `get()`.{{{
-        "
-        "     let bufnr = get(s:, 'bufnr', term_start(&shell, #{hidden: 1}))
-        "
-        " Every time you would toggle the window, a new terminal buffer would be
-        " created.  This is because  `term_start()` is evaluated before `get()`.
-        " IOW, before `get()` checks whether `s:popup_bufnr` exists.
-        "}}}
-        if exists('s:popup_bufnr')
-            let bufnr = s:popup_bufnr
-        else
-            let bufnr = term_start(&shell, #{hidden: v:true})
-            call setbufvar(bufnr, 'popup_terminal', v:true)
-        endif
-
-        " We really need the `maxwidth` and `maxheight` keys.{{{
-        "
-        " Otherwise, when  we scroll back  in a  long shell command  output, the
-        " terminal buffer contents goes beyond the end of the window.
-        "}}}
-        let winid = popup_create(bufnr, #{
-            \ line: a:opts.row,
-            \ col: a:opts.col,
-            \ minwidth: a:opts.width,
-            \ maxwidth: a:opts.width,
-            \ minheight: a:opts.height,
-            \ maxheight: a:opts.height,
-            \ highlight: 'Normal',
-            \ border: [],
-            \ borderhighlight: [s:OPTS.term_normal_highlight],
-            \ borderchars: ['─', '│', '─', '│', '┌', '┐', '┘', '└'],
-            \ padding: [0, 1, 0, 1],
-            \ zindex: 50,
-            \ })
-
-        " Install our custom terminal settings as soon as the terminal buffer is displayed in a window.{{{
-        "
-        " Useful, for example,  to get our `Esc Esc` key  binding, and for `M-p`
-        " to work (i.e. recall latest command starting with current prefix).
-        "}}}
-        if exists('#TerminalWinOpen') | do <nomodeline> TerminalWinOpen | endif
-        if exists('#User#TermEnter') | do <nomodeline> User TermEnter | endif
-
-        return [winbufnr(winid), winid]
-    endfu
-    "}}}2
-endif
 fu s:close(...) abort "{{{2
     let s:view = winsaveview()
     if has('nvim')
@@ -185,14 +133,6 @@ fu s:close(...) abort "{{{2
     else
         call popup_close(win_getid())
     endif
-endfu
-
-fu s:get_border(width, height) abort "{{{2
-    let top = '┌'..repeat('─', a:width - 2)..'┐'
-    let mid = '│'..repeat(' ', a:width - 2)..'│'
-    let bot = '└'..repeat('─', a:width - 2)..'┘'
-    let border = [top] + repeat([mid], a:height - 2) + [bot]
-    return border
 endfu
 
 fu s:get_term_geometry() abort "{{{2
@@ -211,14 +151,6 @@ fu s:get_term_geometry() abort "{{{2
     if !has('nvim') | let col -= 1 | endif
 
     return [width, height, row, col]
-endfu
-
-fu s:wipe_border_when_toggling_off(border) abort "{{{2
-    augroup wipe_border
-        au! * <buffer>
-        exe 'au BufHidden,BufWipeout <buffer> '
-            \ ..'exe "au! wipe_border * <buffer>" | bw '..a:border
-    augroup END
 endfu
 
 fu s:dynamic_border_color(winid) abort "{{{2
@@ -258,77 +190,6 @@ fu s:dynamic_border_color(winid) abort "{{{2
 endfu
 
 fu s:persistent_view() abort "{{{2
-    " make the view persistent when we enter/leave Terminal-Job mode
-    if has('nvim')
-        " TODO: Remove this function call, and the autocmd, once `'scrolloff'` becomes window-local (cf. PR #11854).{{{
-        "
-        " If  you  sometimes  notice  that  the view  is  altered  when  leaving
-        " Terminal-Job mode, it's probably because of our autocmd which restores
-        " the global value of `'so'` to 3.
-        "
-        " Don't try to fix that.  You probably can't.
-        " Just wait for  the PR to be  merged, remove the code  here, then check
-        " whether the view is still altered.
-        "}}}
-        call s:handle_scrolloff()
-        au TermLeave <buffer> let s:_view = winsaveview()
-            \ | call timer_start(0, {-> exists('s:_view') && winrestview(s:_view)})
-    endif
-
-    " FIXME: In Vim, the cursor position is often not preserved.{{{
-    "
-    "     C-g C-g
-    "     $ infocmp -1x
-    "     Esc Esc
-    "     i
-    "     $ ls
-    "     Esc Esc  " unexpected view
-    "
-    " ---
-    "
-    "     C-g C-g
-    "     $ infocmp -1x
-    "     C-l
-    "     Esc Esc  " unexpected view
-    "     gg
-    "     i
-    "     Esc Esc  " unexpected view
-    "     i        " unexpected view
-    "
-    " Don't try to install an autocmd like for Nvim; it doesn't work.
-    " This is a bug.
-    "
-    " I can also reproduce even without running any shell command; just quitting
-    " to Terminal-Normal mode once or twice.
-    " Note that in reality, the cursor position is correct; it's just "drawn"
-    " in the wrong position; if you press some motion key, you'll see that the cursor
-    " was in the correct position.  Vim doesn't seem to redraw enough.
-    "
-    " I can also reproduce without leaving Terminal-Normal mode.
-    " Just press `50%`, then `l`.
-    " Or just enter and  leave the Ex command-line (this one  is probably due to
-    " our custom mapping, but still...).
-    "
-    " The issue is influenced by the 'border' and 'padding' keys.
-    " And by:
-    "
-    "    - `'startofline'`
-    "    - the matchup plugin; probably because of the `%` mapping
-    "    - the readline plugin; because of an autocmd listening to `CmdlineEnter :` which invokes a timer:
-    "
-    "         au CmdlineEnter : call timer_start(0, {-> execute('')})
-    "
-    " Also, note that most (any?) custom normal command seem to alter the cursor
-    " position (even our custom `m` command).
-    "}}}
-    " temporary workaround
-    if !has('nvim')
-        if mode(1) is# 'n'
-            call timer_start(0, {-> s:fix_pos()})
-        endif
-        au User TermLeave call timer_start(0, {-> s:fix_pos()})
-    endif
-
     " Make the view persistent when we toggle the window on and off.{{{
     "
     " By  default, Vim  doesn't seem  to restore  the cursor  position, nor  the
@@ -344,23 +205,7 @@ fu s:persistent_view() abort "{{{2
 endfu
 "}}}1
 " Util {{{1
-fu s:is_popup_terminal_on() abort "{{{2
-    return index(map(getwininfo(), {_,v -> getbufvar(v.bufnr, 'popup_terminal')}), v:true) != -1
-endfu
-
-fu s:handle_scrolloff() abort "{{{2
-    au! terminal_disable_scrolloff * <buffer>
-    set so=0
-    augroup popup_terminal_toggle_scrolloff
-        au! * <buffer>
-        au WinLeave <buffer> set so=3
-        au WinEnter <buffer> set so=0
-    augroup END
-endfu
-
-fu s:fix_pos() abort "{{{2
-    let pos = getpos("'m")
-    call feedkeys('mmk`m', 'int')
-    call timer_start(0, {-> setpos("'m", pos)})
+fu s:is_toggling_popup_term_on(...) abort "{{{2
+    return index(map(getwininfo(), {_,v -> getbufvar(v.bufnr, 'toggling_popup_term')}), v:true) != -1
 endfu
 

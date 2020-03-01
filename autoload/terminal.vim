@@ -1,5 +1,54 @@
+fu terminal#setup() abort "{{{1
+    " in this function, put settings which should be applied both in Vim and Nvim
+
+    nno <buffer><nowait><silent> D  i<c-k><c-\><c-n>
+    nno <buffer><nowait><silent> dd i<c-e><c-u><c-\><c-n>
+
+    xno <buffer><nowait><silent> c <nop>
+    xno <buffer><nowait><silent> d <nop>
+    xno <buffer><nowait><silent> p <nop>
+    xno <buffer><nowait><silent> x <nop>
+endfu
+
 fu terminal#setup_neovim() abort "{{{1
-    " `'scrolloff'` causes an issue with our zsh snippets:{{{
+    augroup terminal_disable_scrolloff
+        au! * <buffer>
+        au WinEnter <buffer> set so=0 siso=0
+        let [_so, _siso] = [&so, &siso]
+        exe 'au WinLeave <buffer> set so='.._so..' siso='.._siso
+    augroup END
+
+    nno <buffer><nowait><silent> I  I<c-a>
+    nno <buffer><nowait><silent> A  A<c-e>
+    nno <buffer><nowait><silent> C  i<c-k>
+    nno <buffer><nowait><silent> cc i<c-e><c-u>
+endfu
+
+fu terminal#setup_vim() abort "{{{1
+    " Neovim automatically disables `'wrap'` in a terminal buffer.
+    " Not Vim. We do it in this function.
+    setl nowrap
+    " Rationale:{{{
+    "
+    " Setting `'siso'` to a non-zero value is useless in a terminal buffer; long
+    " lines are automatically hard-wrapped.
+    " Besides, it makes the window's view "dance" when pressing `l` and reaching
+    " the end of a long line, which is jarring.
+    "
+    " ---
+    "
+    " We reset `'so'` because:
+    "
+    "    - it makes moving in a terminal buffer more consistent with tmux copy-mode
+    "
+    "    - it fixes an issue where the terminal flickers in Terminal-Job mode
+    "      (the issue only affects Nvim, but let's be consistent between Vim and Nvim)
+    "
+    "    - it could prevent other issues in the future (be it in Vim or in Nvim)
+    "
+    " ---
+    "
+    " Here's a MWE of the issue where the terminal flickers:
     "
     "     $ nvim -Nu NONE +'set so=3 | 10sp | term' +'startinsert'
     "     # press C-g C-g Esc
@@ -12,34 +61,13 @@ fu terminal#setup_neovim() abort "{{{1
     "
     " There may be other similar issues:
     " https://github.com/neovim/neovim/search?q=terminal+scrolloff&type=Issues
-    "
-    " Anyway, let's reset the option in a terminal window to avoid any issue.
     "}}}
-    " TODO: Replace these autocmds with a single `:setlocal so=0`, once `'scrolloff'` becomes window-local.
-    " (cf. PR #11854)
-    augroup terminal_disable_scrolloff
-        au! * <buffer>
-        au TermEnter <buffer> set scrolloff=0
-        au TermLeave <buffer> set scrolloff=3
-    augroup END
-
-    nno <buffer><nowait><silent> I  I<c-a>
-    nno <buffer><nowait><silent> A  A<c-e>
-    nno <buffer><nowait><silent> C  i<c-k>
-    nno <buffer><nowait><silent> D  i<c-k><c-\><c-n>
-    nno <buffer><nowait><silent> cc i<c-e><c-u>
-    nno <buffer><nowait><silent> dd i<c-e><c-u><c-\><c-n>
-
-    xno <buffer><nowait><silent> c <nop>
-    xno <buffer><nowait><silent> d <nop>
-    xno <buffer><nowait><silent> p <nop>
-    xno <buffer><nowait><silent> x <nop>
-endfu
-
-fu terminal#setup_vim() abort "{{{1
-    " Neovim automatically disables `'wrap'` in a terminal buffer.
-    " Not Vim. We do it in this function.
-    setlocal nowrap
+    " TODO: When the PR #11854 is merged in Nvim, move this line in `#setup()`.{{{
+    "
+    " This way, it will be applied both in Vim and in Nvim.
+    " Also, remove the autocmd `terminal_disable_scrolloff`; it will be useless then.
+    "}}}
+    setl so=0 siso=0
     " Here, `'termwinkey'` seems to behave a little like `C-r` in insert mode.
     " With one difference though: when specifying the register, you need to prefix it with `"`.
     exe 'nnoremap <buffer><nowait><silent> p i<c-e>'..&l:termwinkey..'""'
@@ -59,13 +87,6 @@ fu terminal#setup_vim() abort "{{{1
 
     nno <buffer><nowait><silent> C  :<c-u>call <sid>fire_termenter('i<c-v><c-k>')<cr>
     nno <buffer><nowait><silent> cc :<c-u>call <sid>fire_termenter('i<c-v><c-e><c-v><c-u>')<cr>
-    nno <buffer><nowait><silent> D   i<c-k><c-\><c-n>
-    nno <buffer><nowait><silent> dd  i<c-e><c-u><c-\><c-n>
-
-    xno <buffer><nowait><silent> c <nop>
-    xno <buffer><nowait><silent> d <nop>
-    xno <buffer><nowait><silent> p <nop>
-    xno <buffer><nowait><silent> x <nop>
 
     " suppress error: Vim(wincmd):E994: Not allowed in a popup window
     if win_gettype() is# 'popup'

@@ -12,9 +12,9 @@ nno <silent> <c-g><c-g> :<c-u>call terminal#toggle_popup#main()<cr>
 augroup my_terminal
     au!
     if has('nvim')
-        au TermOpen * call terminal#setup_neovim() | startinsert
+        au TermOpen * call terminal#setup() | call terminal#setup_neovim() | startinsert
     else
-        au TerminalWinOpen * call terminal#setup_vim()
+        au TerminalWinOpen * call terminal#setup() | call terminal#setup_vim()
     endif
 augroup END
 
