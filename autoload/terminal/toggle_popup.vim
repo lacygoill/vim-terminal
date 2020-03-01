@@ -41,10 +41,10 @@ call s:sanitize()
 " Interface {{{1
 fu terminal#toggle_popup#main() abort "{{{2
     " close popup terminal window if it's already on
-    if exists('b:toggling_popup_term')
+    if exists('b:togglable_popup_term')
         return s:close()
     " in Nvim, the popup terminal window is not necessarily the current window
-    elseif has('nvim') && s:is_toggling_popup_term_on()
+    elseif has('nvim') && s:is_togglable_popup_term_on()
         call s:close(s:popup_winid)
     endif
 
@@ -72,7 +72,7 @@ fu terminal#toggle_popup#main() abort "{{{2
     " Such a widget changes the final geometry of the displayed popup window.
     " It makes  it slightly bigger;  how much depends  on the values  inside the
     " lists assigned to the keys `border` and `padding`.
-    " Here, we don't assign anything to  `border` nor to `padding`, however – by
+    " Here, we don't assign anything to  `border` nor to `padding`; however – by
     " default –  `#popup#create()` assigns `[]`  to `border` and  `[0,1,0,1]` to
     " `padding`.
     "
@@ -109,7 +109,7 @@ fu terminal#toggle_popup#main() abort "{{{2
     " But we're not interested in *any* popup terminal.
     " We are interested in *our* custom popup terminal, which is toggled by `C-g C-g`.
     "}}}
-    call setbufvar(term_bufnr, 'toggling_popup_term', v:true)
+    call setbufvar(term_bufnr, 'togglable_popup_term', v:true)
 
     let s:popup_winid = term_winid
 
@@ -182,8 +182,24 @@ fu s:dynamic_border_color(winid) abort "{{{2
             " remembers the last mode you were in.
             "}}}
             if mode() is# 't' | exe cmd | endif
+            " Why `:redraw`?{{{
+            "
+            " To make Vim apply the new color on the border.
+            "
+            " ---
+            "
+            " Note that  – at the moment  – we don't need  `:redraw`, but that's
+            " only  thanks to  a side-effect  of an  autocmd in  `vim-readline`,
+            " whose effect can be reproduced with:
+            "
+            "     au CmdlineEnter: call timer_start(0, {-> 0})
+            "
+            " But that's probably brittle, and I don't fully understand what happens.
+            " I guess we have some terminal mappings which trigger `CmdlineEnter`,
+            " which in turn invoke the timer, which in turn causes the redraw.
+            "}}}
             exe 'au! User TermLeave '
-                \ ..printf('call popup_setoptions(%d, %s)',
+                \ ..printf('call popup_setoptions(%d, %s)|redraw',
                 \ a:winid, {'borderhighlight': [s:OPTS.term_normal_highlight]})
         endif
     augroup END
@@ -205,7 +221,7 @@ fu s:persistent_view() abort "{{{2
 endfu
 "}}}1
 " Util {{{1
-fu s:is_toggling_popup_term_on(...) abort "{{{2
-    return index(map(getwininfo(), {_,v -> getbufvar(v.bufnr, 'toggling_popup_term')}), v:true) != -1
+fu s:is_togglable_popup_term_on(...) abort "{{{2
+    return index(map(getwininfo(), {_,v -> getbufvar(v.bufnr, 'togglable_popup_term')}), v:true) != -1
 endfu
 
