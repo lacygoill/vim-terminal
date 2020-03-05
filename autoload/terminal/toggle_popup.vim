@@ -61,41 +61,12 @@ fu terminal#toggle_popup#main() abort "{{{2
     "}}}
     let [width, height, row, col] = s:get_term_geometry()
 
-    " Why the difference?{{{
-    "
-    " Nvim doesn't support a border widget by default.
-    " We emulate it by creating 2 floats; the bigger one draws the border.
-    " We need to pass to `#popup#create()` the geometry of the border float.
-    " The latter function will derive the geometry of the "inner" float.
-    "
-    " OTOH, Vim does support a border widget by default.
-    " Such a widget changes the final geometry of the displayed popup window.
-    " It makes  it slightly bigger;  how much depends  on the values  inside the
-    " lists assigned to the keys `border` and `padding`.
-    " Here, we don't assign anything to  `border` nor to `padding`; however – by
-    " default –  `#popup#create()` assigns `[]`  to `border` and  `[0,1,0,1]` to
-    " `padding`.
-    "
-    " Anyway, we want the exact same geometry, whether we use Vim or Nvim.
-    " So we  need to take into  account the fact  that Vim will create  a bigger
-    " window; that is, we need to make it smaller, so that in the ends, with the
-    " added border, we get the exact same result as in Nvim.
-    "}}}
-    if has('nvim')
-        let opts = {
-            \ 'width': width,
-            \ 'height': height,
-            \ 'row': row,
-            \ 'col': col,
-            \ }
-    else
-        let opts = {
-            \ 'width': width - 4,
-            \ 'height': height - 2,
-            \ 'row': row + 1,
-            \ 'col': col + 2,
-            \ }
-    endif
+    let opts = {
+        \ 'width': width,
+        \ 'height': height,
+        \ 'row': row,
+        \ 'col': col,
+        \ }
     call extend(opts, {'borderhighlight': s:OPTS.term_normal_highlight, 'term': v:true})
     try
         let [term_bufnr, term_winid; border] = lg#popup#create(get(s:, 'popup_bufnr', ''), opts)
@@ -145,10 +116,12 @@ fu s:get_term_geometry() abort "{{{2
     " set to `&lines`, which  is wrong; the top of the popup  window can't be on
     " the last line of the screen; the lowest it can be is `&lines - height`.
     "}}}
-    let row = float2nr(s:OPTS.yoffset * (&lines - height))
-    let col = float2nr(s:OPTS.xoffset * (&columns - width))
-    " to get the exact same position in Vim and Nvim
-    if !has('nvim') | let col -= 1 | endif
+    let row = float2nr(s:OPTS.yoffset * (&lines - height)) + 1
+    let col = float2nr(s:OPTS.xoffset * (&columns - width)) + 1
+    " Why `+1`?{{{
+    "
+    " To get the same geometry as a popup window created by fzf.
+    "}}}
 
     return [width, height, row, col]
 endfu
