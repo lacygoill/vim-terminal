@@ -98,7 +98,58 @@ fu terminal#setup_vim() abort "{{{1
 endfu
 
 fu s:fire_termenter(rhs) abort "{{{1
-    exe 'norm! '..a:rhs[0]
+    try
+        exe 'norm! '..a:rhs[0]
+    " Why?{{{
+    "
+    " When the job  associated to a terminal has finished,  pressing `i` doesn't
+    " make you enter  Terminal-Job mode (there is no job  anymore); it makes you
+    " enter insert mode.  The terminal buffer becomes a normal buffer.
+    " However, it's not modifiable, so `i` raises `E21`.
+    "
+    " All of this is explained at `:h E947`.
+    "}}}
+    catch /^Vim\%((\a\+)\)\=:E21:/
+        " I want to edit this kind of buffer!{{{
+        "
+        " Then replace the next `return` with sth like this:
+        "
+        "     nunmap <buffer> i
+        "     nunmap <buffer> a
+        "     ...
+        "     setl ma
+        "     startinsert
+        "     return
+        "
+        " ---
+        "
+        " You would probably need to  refactor `#setup()` and `#setup_vim()`, so
+        " that  they  expect  an  argument  telling  them  whether  they  should
+        " customize the current terminal buffer or undo previous customizations.
+        " This way, you could simply write sth like:
+        "
+        "     return terminal#setup('disable')
+        "
+        " Inside your function, for each setting  you apply when the buffer is a
+        " terminal one, you would also have  a line undoing the setting for when
+        " the buffer becomes normal:
+        "
+        "     if a:action is# 'enable'
+        "         nno <buffer><nowait><silent> D i<c-k><c-\><c-n>
+        "         ...
+        "     elseif a:action is# 'disable'
+        "         nunmap <buffer> D
+        "         ...
+        "     endif
+        "
+        " ---
+        "
+        " Warning: I don't think you can edit a terminal buffer in Nvim once its
+        " job has finished.  IOW, allowing that in Vim will be inconsistent with
+        " Nvim.
+        "}}}
+        return lg#catch_error()
+    endtry
     " Why does `TermEnter` need to be fired?{{{
     "
     " We have  a few autocmds  which listen to this  event to detect  that we've

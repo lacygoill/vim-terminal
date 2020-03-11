@@ -38,14 +38,24 @@ fu s:sanitize() abort
 endfu
 call s:sanitize()
 
+let s:popup = {}
+
 " Interface {{{1
 fu terminal#toggle_popup#main() abort "{{{2
-    " close popup terminal window if it's already on
-    if exists('b:togglable_popup_term')
-        return s:close()
-    " in Nvim, the popup terminal window is not necessarily the current window
-    elseif has('nvim') && s:is_togglable_popup_term_on()
-        call s:close(s:popup_winid)
+    " Why don't you set and inspect an ad-hoc buffer-local variable?{{{
+    "
+    " It would not be reliable.
+    " In Nvim, the popup terminal window is not necessarily the current window.
+    " I think the same is true in Vim, because you can open several popup terminals atm.
+    "}}}
+    if has_key(s:popup, 'winid')
+        " if the popup terminal is already open on the current tab page, just close it
+        if s:is_open_on_current_tabpage()
+            return s:close()
+        " if it's open on another tab page, close it, then re-open it in the current tab page
+        else
+            call s:close()
+        endif
     endif
 
     " Do *not* move these assignments outside this function.{{{
@@ -69,40 +79,54 @@ fu terminal#toggle_popup#main() abort "{{{2
         \ }
     call extend(opts, {'borderhighlight': s:OPTS.term_normal_highlight, 'term': v:true})
     try
-        let [term_bufnr, term_winid; border] = lg#popup#create(get(s:, 'popup_bufnr', ''), opts)
+        let [term_bufnr, term_winid; border] = lg#popup#create(get(s:popup, 'bufnr', ''), opts)
     catch /^Vim\%((\a\+)\)\=:E117:/
         echohl ErrorMsg | echom 'need lg#popup#create(); install vim-lg-lib' | echohl NONE
         return
     endtry
-    " Don't try to get rid of this ad-hoc variable.{{{
-    "
-    " Yes, we should be able to detect a popup terminal without.
-    " But we're not interested in *any* popup terminal.
-    " We are interested in *our* custom popup terminal, which is toggled by `C-g C-g`.
-    "}}}
-    call setbufvar(term_bufnr, 'togglable_popup_term', v:true)
 
-    let s:popup_winid = term_winid
+    let s:popup.winid = term_winid
+    " Necessary if we close the popup with a mapping which doesn't invoke this function.{{{
+    "
+    " A mapping which closes the popup via a simple `popup_close()`.
+    " In that case, the key gets stale and  needs to be cleaned up, to not cause
+    " errors the next time we want to toggle the popup on.
+    "
+    " Don't try to clean the key from `s:close()`:
+    "
+    "    - it's not reliable enough;
+    "      again, you can close the popup in different ways
+    "
+    "    - this autocmd will do it already;
+    "      doing it a second time would raise `E716` (yes, even with a bang after `:unlet`)
+    "}}}
+    au BufWinLeave <buffer> ++once unlet! s:popup.winid
+    " If the buffer gets wiped out by accident, re-init the variable.{{{
+    "
+    " Otherwise, when you toggle the popup window  on, you get an error in Nvim,
+    " and a different buffer in Vim (after every toggling).
+    "}}}
+    au BufWipeout <buffer> ++once let s:popup = {}
 
     call s:dynamic_border_color(has('nvim') ? border[1] : term_winid)
     call s:persistent_view()
-    if !exists('s:popup_bufnr') | let s:popup_bufnr = term_bufnr | endif
+    if !has_key(s:popup, 'bufnr') | let s:popup.bufnr = term_bufnr | endif
 endfu
 "}}}1
 " Core {{{1
-fu s:close(...) abort "{{{2
-    let s:view = winsaveview()
-    if has('nvim')
-        if a:0
+fu s:close() abort "{{{2
+    let s:popup.view = winsaveview()
+    if !has('nvim')
+        call popup_close(s:popup.winid)
+    else
+        if s:popup.winid == win_getid()
+            close
+        else
             let curwinid = win_getid()
-            call win_gotoid(a:1)
+            call win_gotoid(s:popup.winid)
             close
             call win_gotoid(curwinid)
-        else
-            close
         endif
-    else
-        call popup_close(win_getid())
     endif
 endfu
 
@@ -190,11 +214,21 @@ fu s:persistent_view() abort "{{{2
     " Besides, it can only work when you re-display a buffer in the same window.
     " That's not what is happening here; we re-display a buffer in a *new* window.
     "}}}
-    if exists('s:view') | call winrestview(s:view) | endif
+    if has_key(s:popup, 'view') | call winrestview(s:popup.view) | endif
 endfu
 "}}}1
 " Util {{{1
-fu s:is_togglable_popup_term_on(...) abort "{{{2
-    return index(map(getwininfo(), {_,v -> getbufvar(v.bufnr, 'togglable_popup_term')}), v:true) != -1
+fu s:is_open_on_current_tabpage() abort "{{{2
+    if !has('nvim')
+        " If the popup is in the current tab page, the key 'tabpage' will have the value 0.{{{
+        "
+        " If it's  global (i.e. displayed on  all tab pages), the  key will have
+        " the value  -1.  And if  it's only displayed  on another tab  page, its
+        " value will be the index of that tab page.
+        "}}}
+        return popup_getoptions(s:popup.winid).tabpage == 0
+    else
+        return getwininfo(s:popup.winid)[0].tabnr == tabpagenr()
+    endif
 endfu
 
