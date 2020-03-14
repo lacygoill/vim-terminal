@@ -1,4 +1,5 @@
-fu terminal#setup() abort "{{{1
+" Interface {{{1
+fu terminal#setup() abort "{{{2
     " in this function, put settings which should be applied both in Vim and Nvim
 
     nno <buffer><nowait><silent> D  i<c-k><c-\><c-n>
@@ -8,9 +9,41 @@ fu terminal#setup() abort "{{{1
     xno <buffer><nowait><silent> d <nop>
     xno <buffer><nowait><silent> p <nop>
     xno <buffer><nowait><silent> x <nop>
+
+    noremap <buffer><expr><nowait><silent> [c lg#motion#rhs('shell_prompt', 0)
+    noremap <buffer><expr><nowait><silent> ]c lg#motion#rhs('shell_prompt', 1)
+    sil! call repmap#make#all({
+        \ 'mode': '',
+        \ 'buffer': 1,
+        \ 'from': expand('<sfile>:p')..':'..expand('<slnum>'),
+        \ 'motions': [{'bwd': '[c',  'fwd': ']c'}]})
+
+    " `ZF` and `mq` don't work on relative paths.{{{
+    "
+    " Solution1:
+    "
+    "     # in ~/.zshrc
+    "     rg() {
+    "       emulate -L zsh
+    "       command rg -LS --vimgrep --color=auto $* $(pwd)
+    "       #                                        ^^^^^^
+    "       #                        To get absolute paths.
+    "       # See: https://github.com/BurntSushi/ripgrep/issues/958#issuecomment-404471289
+    "     }
+    "
+    " Solution2: Install `ZF`/`mq` local  mappings, which are able  to parse the
+    " cwd from the previous shell prompt.
+    "
+    " I prefer the  second solution, because I don't always  want absolute paths
+    " in the shell, and because a smarter `ZF` is actually more powerful/useful;
+    " it can help with any shell command, not just `rg(1)`.
+    " E.g., you can press `ZF` on a file output by `$ ls`.
+    "}}}
+    let &l:inex = s:snr..'inex()'
+    xno <buffer><nowait><silent> mq :<c-u>call <sid>mq()<cr>
 endfu
 
-fu terminal#setup_neovim() abort "{{{1
+fu terminal#setup_neovim() abort "{{{2
     augroup terminal_disable_scrolloff
         au! * <buffer>
         au WinEnter <buffer> set so=0 siso=0
@@ -24,7 +57,7 @@ fu terminal#setup_neovim() abort "{{{1
     nno <buffer><nowait><silent> cc i<c-e><c-u>
 endfu
 
-fu terminal#setup_vim() abort "{{{1
+fu terminal#setup_vim() abort "{{{2
     " Neovim automatically disables `'wrap'` in a terminal buffer.
     " Not Vim. We do it in this function.
     setl nowrap
@@ -97,7 +130,7 @@ fu terminal#setup_vim() abort "{{{1
     endif
 endfu
 
-fu s:fire_termenter(rhs) abort "{{{1
+fu s:fire_termenter(rhs) abort "{{{2
     try
         exe 'norm! '..a:rhs[0]
     " Why?{{{
@@ -182,9 +215,16 @@ fu s:fire_termenter(rhs) abort "{{{1
     call term_sendkeys('', a:rhs[1:])
 endfu
 
-fu terminal#fire_termleave() abort "{{{1
+fu terminal#fire_termleave() abort "{{{2
     if exists('#User#TermLeave')
         do <nomodeline> User TermLeave
     endif
 endfu
+"}}}1
+" Utilities {{{1
+
+fu s:snr() abort "{{{2
+    return matchstr(expand('<sfile>'), '.*\zs<SNR>\d\+_')
+endfu
+let s:snr = get(s:, 'snr', s:snr())
 
