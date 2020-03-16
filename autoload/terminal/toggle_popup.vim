@@ -19,9 +19,9 @@ const s:OPTS = {
     "\ the closer to 1 the lower the window
     \ 'yoffset': 0.5,
     "\ border color when in terminal-normal mode
-    \ 'term_normal_highlight': 'Title',
+    \ 'normal_highlight': 'Title',
     "\ border color when in terminal-job mode
-    \ 'term_job_highlight': 'Comment',
+    \ 'job_highlight': 'Comment',
     \ }
 
 fu s:sanitize() abort
@@ -58,34 +58,22 @@ fu terminal#toggle_popup#main() abort "{{{2
         endif
     endif
 
-    " Do *not* move these assignments outside this function.{{{
-    "
-    " These variables must be re-computed at runtime, on every toggling.
-    " That's because Vim's geometry (i.e. `&columns`, `&lines`) can change at runtime.
-    " In particular, the geometry it had  at startup time is not necessarily the
-    " same as when this function is invoked.
-    "
-    " For example, if  you move these assignments directly to  the script level,
-    " and execute  `:LogEvents`, then toggle  the popup terminal window  on, you
-    " should see that the border is wrong.
-    "}}}
-    let [width, height, row, col] = s:get_term_geometry()
-
-    let opts = {
-        \ 'width': width,
-        \ 'height': height,
-        \ 'row': row,
-        \ 'col': col,
-        \ }
-    call extend(opts, {'borderhighlight': s:OPTS.term_normal_highlight, 'term': v:true})
+    let [bufnr, opts] = [get(s:popup, 'bufnr', -1), s:get_opts()]
     try
-        let [term_bufnr, term_winid; border] = lg#popup#create(get(s:popup, 'bufnr', ''), opts)
+        let [term_bufnr, term_winid; border] = lg#popup#create(bufnr, opts)
     catch /^Vim\%((\a\+)\)\=:E117:/
         echohl ErrorMsg | echom 'need lg#popup#create(); install vim-lg-lib' | echohl NONE
         return
     endtry
 
+    if !has_key(s:popup, 'bufnr') | let s:popup.bufnr = term_bufnr | endif
     let s:popup.winid = term_winid
+    " If the buffer gets wiped out by accident, re-init the variable.{{{
+    "
+    " Otherwise, when you toggle the popup window  on, you get an error in Nvim,
+    " and a different buffer in Vim (after every toggling).
+    "}}}
+    au BufWipeout <buffer> ++once let s:popup = {}
     " Necessary if we close the popup with a mapping which doesn't invoke this function.{{{
     "
     " A mapping which closes the popup via a simple `popup_close()`.
@@ -101,16 +89,9 @@ fu terminal#toggle_popup#main() abort "{{{2
     "      doing it a second time would raise `E716` (yes, even with a bang after `:unlet`)
     "}}}
     au BufWinLeave <buffer> ++once unlet! s:popup.winid
-    " If the buffer gets wiped out by accident, re-init the variable.{{{
-    "
-    " Otherwise, when you toggle the popup window  on, you get an error in Nvim,
-    " and a different buffer in Vim (after every toggling).
-    "}}}
-    au BufWipeout <buffer> ++once let s:popup = {}
 
     call s:dynamic_border_color(has('nvim') ? border[1] : term_winid)
     call s:persistent_view()
-    if !has_key(s:popup, 'bufnr') | let s:popup.bufnr = term_bufnr | endif
 endfu
 "}}}1
 " Core {{{1
@@ -130,7 +111,30 @@ fu s:close() abort "{{{2
     endif
 endfu
 
-fu s:get_term_geometry() abort "{{{2
+fu s:get_opts() abort "{{{2
+    " Do *not* move these assignments outside this function.{{{
+    "
+    " These variables must be re-computed at runtime, on every toggling.
+    " That's because Vim's geometry (i.e. `&columns`, `&lines`) can change at runtime.
+    " In particular, the geometry it had  at startup time is not necessarily the
+    " same as when this function is invoked.
+    "
+    " For example, if  you move these assignments directly to  the script level,
+    " and execute  `:LogEvents`, then toggle  the popup terminal window  on, you
+    " should see that the border is wrong.
+    "}}}
+    let [width, height, row, col] = s:get_geometry()
+    let opts = {
+        \ 'width': width,
+        \ 'height': height,
+        \ 'row': row,
+        \ 'col': col,
+        \ }
+    call extend(opts, {'borderhighlight': s:OPTS.normal_highlight, 'term': v:true})
+    return opts
+endfu
+
+fu s:get_geometry() abort "{{{2
     let width = float2nr(&columns * s:OPTS.width)
     let height = float2nr(&lines * s:OPTS.height)
 
@@ -142,32 +146,28 @@ fu s:get_term_geometry() abort "{{{2
     "}}}
     let row = float2nr(s:OPTS.yoffset * (&lines - height)) + 1
     let col = float2nr(s:OPTS.xoffset * (&columns - width)) + 1
-    " Why `+1`?{{{
-    "
-    " To get the same geometry as a popup window created by fzf.
-    "}}}
 
     return [width, height, row, col]
 endfu
 
 fu s:dynamic_border_color(winid) abort "{{{2
     augroup dynamic_border_color
-        au! * <buffer>
         if has('nvim')
+            au! * <buffer>
             exe 'au TermEnter <buffer> '
                 \ ..printf('call setwinvar(%d, "&winhighlight", "NormalFloat:%s")',
-                \ a:winid, s:OPTS.term_job_highlight)
+                \ a:winid, s:OPTS.job_highlight)
             exe 'au TermLeave <buffer> '
                 \ ..printf('call setwinvar(%d, "&winhighlight", "NormalFloat:%s")',
-                \ a:winid, s:OPTS.term_normal_highlight)
+                \ a:winid, s:OPTS.normal_highlight)
         else
-            let cmd = printf('call popup_setoptions(%d, %s)',
-                \ a:winid, {'borderhighlight': [s:OPTS.term_job_highlight]})
+            let cmd = printf('if win_getid() == %d|call popup_setoptions(%d, %s)|endif',
+                \ a:winid, a:winid, #{borderhighlight: [s:OPTS.job_highlight]})
             exe 'au! User TermEnter '..cmd
             " Why inspecting `mode()`?{{{
             "
-            " Initially, the border is highlighted by `s:OPTS.term_normal_highlight`.
-            " This command resets the highlighting to `s:OPTS.term_job_highlight`.
+            " Initially, the border is highlighted by `s:OPTS.normal_highlight`.
+            " This command resets the highlighting to `s:OPTS.job_highlight`.
             " This is correct  the first time we toggle the  popup on, because we're
             " automatically in Terminal-Job mode.
             " Afterwards,  this   is  wrong;   we're  no  longer   automatically  in
@@ -196,8 +196,8 @@ fu s:dynamic_border_color(winid) abort "{{{2
             " which in turn invoke the timer, which in turn causes the redraw.
             "}}}
             exe 'au! User TermLeave '
-                \ ..printf('call popup_setoptions(%d, %s)|redraw',
-                \ a:winid, {'borderhighlight': [s:OPTS.term_normal_highlight]})
+                \ ..printf('if win_getid() == %d|call popup_setoptions(%d, %s)|redraw|endif',
+                \ a:winid, a:winid, #{borderhighlight: [s:OPTS.normal_highlight]})
         endif
     augroup END
 endfu

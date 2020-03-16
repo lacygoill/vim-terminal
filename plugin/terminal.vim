@@ -20,12 +20,12 @@ augroup END
 
 " Why do you install a mapping whose lhs is `Esc Esc`?{{{
 "
-" In Vim, we can't use `esc` in the  lhs of a mapping, because any key producing
-" a  sequence of  keycodes  containing Esc,  would be  subject  to an  undesired
+" In Vim, we can't use `Esc` in the  lhs of a mapping, because any key producing
+" a sequence  of keycodes  containing `Esc`,  would be  subject to  an undesired
 " remapping (`M-b`, `M-f`, `Left`, `Right`, ...).
 "
 " Example:
-" `M-b` produce Escape (enter Terminal-Normal mode) + b (one word backward).
+" `M-b` produces `Esc` (enter Terminal-Normal mode) + `b` (one word backward).
 " We *do* want to go one word backward, but we also want to stay in Terminal-Job
 " mode.
 "}}}
@@ -48,7 +48,7 @@ augroup END
 " So, to  go from Terminal-Job mode  to Terminal-Normal mode, we  could use this
 " mapping:
 "
-"     exe 'tno <buffer> '.(has('nvim') ? '<esc>' : '<esc><esc>').' <c-\><c-n>'
+"     exe 'tno <buffer> '..(has('nvim') ? '<esc>' : '<esc><esc>')..' <c-\><c-n>'
 "
 " But I  prefer to  stay consistent:  double Escape  in Vim  → double  escape in
 " Neovim.
@@ -58,7 +58,7 @@ augroup END
 " Maybe something like this:
 "
 "     exe "set <m-[>=\e["
-"     tno  <m-[>  <esc>
+"     tno <m-[> <esc>
 "
 " It doesn't work, but you get the idea.
 "}}}

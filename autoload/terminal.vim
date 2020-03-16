@@ -10,8 +10,8 @@ fu terminal#setup() abort "{{{2
     xno <buffer><nowait><silent> p <nop>
     xno <buffer><nowait><silent> x <nop>
 
-    noremap <buffer><expr><nowait><silent> [c lg#motion#rhs('shell_prompt', 0)
-    noremap <buffer><expr><nowait><silent> ]c lg#motion#rhs('shell_prompt', 1)
+    noremap <buffer><expr><nowait><silent> [c brackets#move#regex('shell_prompt', 0)
+    noremap <buffer><expr><nowait><silent> ]c brackets#move#regex('shell_prompt', 1)
     sil! call repmap#make#all({
         \ 'mode': '',
         \ 'buffer': 1,
@@ -181,7 +181,7 @@ fu s:fire_termenter(rhs) abort "{{{2
         " job has finished.  IOW, allowing that in Vim will be inconsistent with
         " Nvim.
         "}}}
-        return lg#catch_error()
+        return lg#catch()
     endtry
     " Why does `TermEnter` need to be fired?{{{
     "
