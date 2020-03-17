@@ -18,6 +18,8 @@ fu terminal#setup() abort "{{{2
         \ 'from': expand('<sfile>:p')..':'..expand('<slnum>'),
         \ 'motions': [{'bwd': '[c',  'fwd': ']c'}]})
 
+    setl so=0 siso=0
+
     " `ZF` and `mq` don't work on relative paths.{{{
     "
     " Solution1:
@@ -44,13 +46,6 @@ fu terminal#setup() abort "{{{2
 endfu
 
 fu terminal#setup_neovim() abort "{{{2
-    augroup terminal_disable_scrolloff
-        au! * <buffer>
-        au WinEnter <buffer> set so=0 siso=0
-        let [_so, _siso] = [&so, &siso]
-        exe 'au WinLeave <buffer> set so='.._so..' siso='.._siso
-    augroup END
-
     nno <buffer><nowait><silent> I  I<c-a>
     nno <buffer><nowait><silent> A  A<c-e>
     nno <buffer><nowait><silent> C  i<c-k>
@@ -95,12 +90,6 @@ fu terminal#setup_vim() abort "{{{2
     " There may be other similar issues:
     " https://github.com/neovim/neovim/search?q=terminal+scrolloff&type=Issues
     "}}}
-    " TODO: When the PR #11854 is merged in Nvim, move this line in `#setup()`.{{{
-    "
-    " This way, it will be applied both in Vim and in Nvim.
-    " Also, remove the autocmd `terminal_disable_scrolloff`; it will be useless then.
-    "}}}
-    setl so=0 siso=0
     " Here, `'termwinkey'` seems to behave a little like `C-r` in insert mode.
     " With one difference though: when specifying the register, you need to prefix it with `"`.
     exe 'nnoremap <buffer><nowait><silent> p i<c-e>'..&l:termwinkey..'""'
