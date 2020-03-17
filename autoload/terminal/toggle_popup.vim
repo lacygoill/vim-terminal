@@ -123,12 +123,12 @@ fu s:get_opts() abort "{{{2
     " and execute  `:LogEvents`, then toggle  the popup terminal window  on, you
     " should see that the border is wrong.
     "}}}
-    let [width, height, row, col] = s:get_geometry()
+    let [row, col, width, height] = s:get_geometry()
     let opts = {
-        \ 'width': width,
-        \ 'height': height,
         \ 'row': row,
         \ 'col': col,
+        \ 'width': width,
+        \ 'height': height,
         \ }
     call extend(opts, {'borderhighlight': s:OPTS.normal_highlight, 'term': v:true})
     return opts
@@ -147,7 +147,7 @@ fu s:get_geometry() abort "{{{2
     let row = float2nr(s:OPTS.yoffset * (&lines - height)) + 1
     let col = float2nr(s:OPTS.xoffset * (&columns - width)) + 1
 
-    return [width, height, row, col]
+    return [row, col, width, height]
 endfu
 
 fu s:dynamic_border_color(winid) abort "{{{2
