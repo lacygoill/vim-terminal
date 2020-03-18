@@ -111,45 +111,6 @@ fu s:close() abort "{{{2
     endif
 endfu
 
-fu s:get_opts() abort "{{{2
-    " Do *not* move these assignments outside this function.{{{
-    "
-    " These variables must be re-computed at runtime, on every toggling.
-    " That's because Vim's geometry (i.e. `&columns`, `&lines`) can change at runtime.
-    " In particular, the geometry it had  at startup time is not necessarily the
-    " same as when this function is invoked.
-    "
-    " For example, if  you move these assignments directly to  the script level,
-    " and execute  `:LogEvents`, then toggle  the popup terminal window  on, you
-    " should see that the border is wrong.
-    "}}}
-    let [row, col, width, height] = s:get_geometry()
-    let opts = {
-        \ 'row': row,
-        \ 'col': col,
-        \ 'width': width,
-        \ 'height': height,
-        \ }
-    call extend(opts, {'borderhighlight': s:OPTS.normal_highlight, 'term': v:true})
-    return opts
-endfu
-
-fu s:get_geometry() abort "{{{2
-    let width = float2nr(&columns * s:OPTS.width)
-    let height = float2nr(&lines * s:OPTS.height)
-
-    " Why `&lines - height`?  Why not just `&lines`{{{
-    "
-    " If your `yoffset`  is 1, and you  just write `&lines`, then  `row` will be
-    " set to `&lines`, which  is wrong; the top of the popup  window can't be on
-    " the last line of the screen; the lowest it can be is `&lines - height`.
-    "}}}
-    let row = float2nr(s:OPTS.yoffset * (&lines - height)) + 1
-    let col = float2nr(s:OPTS.xoffset * (&columns - width)) + 1
-
-    return [row, col, width, height]
-endfu
-
 fu s:dynamic_border_color(winid) abort "{{{2
     augroup dynamic_border_color
         if has('nvim')
@@ -218,6 +179,45 @@ fu s:persistent_view() abort "{{{2
 endfu
 "}}}1
 " Util {{{1
+fu s:get_opts() abort "{{{2
+    " Do *not* move these assignments outside this function.{{{
+    "
+    " These variables must be re-computed at runtime, on every toggling.
+    " That's because Vim's geometry (i.e. `&columns`, `&lines`) can change at runtime.
+    " In particular, the geometry it had  at startup time is not necessarily the
+    " same as when this function is invoked.
+    "
+    " For example, if  you move these assignments directly to  the script level,
+    " and execute  `:LogEvents`, then toggle  the popup terminal window  on, you
+    " should see that the border is wrong.
+    "}}}
+    let [row, col, width, height] = s:get_geometry()
+    let opts = {
+        \ 'row': row,
+        \ 'col': col,
+        \ 'width': width,
+        \ 'height': height,
+        \ }
+    call extend(opts, {'borderhighlight': s:OPTS.normal_highlight, 'term': v:true})
+    return opts
+endfu
+
+fu s:get_geometry() abort "{{{2
+    let width = float2nr(&columns * s:OPTS.width) - 4
+    let height = float2nr(&lines * s:OPTS.height) - 2
+
+    " Why `&lines - height`?  Why not just `&lines`{{{
+    "
+    " If your `yoffset`  is 1, and you  just write `&lines`, then  `row` will be
+    " set to `&lines`, which  is wrong; the top of the popup  window can't be on
+    " the last line of the screen; the lowest it can be is `&lines - height`.
+    "}}}
+    let row = float2nr(s:OPTS.yoffset * (&lines - height))
+    let col = float2nr(s:OPTS.xoffset * (&columns - width))
+
+    return [row, col, width, height]
+endfu
+
 fu s:is_open_on_current_tabpage() abort "{{{2
     if !has('nvim')
         " If the popup is in the current tab page, the key 'tabpage' will have the value 0.{{{
