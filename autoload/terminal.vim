@@ -210,10 +210,49 @@ fu terminal#fire_termleave() abort "{{{2
     endif
 endfu
 "}}}1
-" Utilities {{{1
+" Core {{{1
+fu s:inex() abort "{{{2
+    let cwd = s:getcwd()
+    " most of the code is leveraged from a similar function in our vimrc
+    let line = getline('.')
+    let pat = '\m\C${\f\+}'..'\V'..v:fname..'\m\|${\V'..v:fname..'}\f\+\|\%'..col('.')..'c${\f\+}\f\+'
+    let cursor_after = '\m\%(.*\%'..col('.')..'c\)\@='
+    let cursor_before = '\m\%(\%'..col('.')..'c.*\)\@<='
+    let pat = cursor_after..pat..cursor_before
+    if line =~# pat
+        let pat = matchstr(line, pat)
+        let env = matchstr(pat, '\w\+')
+        return substitute(pat, '${'..env..'}', eval('$'..env), '')
+    elseif line =~# cursor_after..'='..cursor_before
+        return substitute(v:fname, '.*=', '', '')
+    elseif line =~# '^\./'
+        return substitute(v:fname, '^\./', cwd, '')
+    else
+        return cwd..v:fname
+    endif
+endfu
 
+fu s:mq() abort "{{{2
+    let cwd = s:getcwd()
+    let [lnum1, lnum2] = [line("'<"), line("'>")]
+    let lines = map(getline(lnum1, lnum2), {_,v -> cwd..v})
+    call setqflist([], ' ', {'lines': lines, 'title': ':'..lnum1..','..lnum2..'cgetbuffer'})
+    cw
+endfu
+"}}}1
+" Utilities {{{1
 fu s:snr() abort "{{{2
     return matchstr(expand('<sfile>'), '.*\zs<SNR>\d\+_')
 endfu
 let s:snr = get(s:, 'snr', s:snr())
+
+fu s:getcwd() abort "{{{2
+    let cwd = getline(search('^٪', 'bnW')-1)
+    let cwd = substitute(cwd, '\s*\[\d\+\]\s*$', '', '')
+    " Warning: in the future, we may define other named directories in our zshrc.
+    " Warning: `1000` may be the wrong UID.  We should inspect `$UID` but it's not in the environment.
+    let cwd = substitute(cwd, '^\~tmp', '/run/user/1000/tmp', '')
+    let cwd = substitute(cwd, '^\~xdcc', $HOME..'/Dowloads/XDCC', '')
+    return cwd..'/'
+endfu
 
