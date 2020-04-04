@@ -90,8 +90,10 @@ fu terminal#toggle_popup#main() abort "{{{2
     "}}}
     au BufWinLeave <buffer> ++once unlet! s:popup.winid
 
+    call s:terminal_job_mapping()
     call s:dynamic_border_color(has('nvim') ? border[1] : term_winid)
     call s:persistent_view()
+    return ''
 endfu
 "}}}1
 " Core {{{1
@@ -108,6 +110,39 @@ fu s:close() abort "{{{2
             close
             call win_gotoid(curwinid)
         endif
+    endif
+endfu
+
+fu s:terminal_job_mapping() abort "{{{2
+    if !exists('g:_termpopup_lhs') | return | endif
+    " FIXME: When we press  `C-g C-g` in a terminal popup,  the zsh snippets
+    " are not visible until we press another key, or until the timeout.
+    " It's because of this mapping.
+    "
+    "     $ nvim -Nu NONE +'set timeoutlen=3000 | tno <c-g><c-a> bcde' +term
+    "     " press i C-g C-g: nothing until timeout
+    "     " press i C-g C-g C-a: cde is inserted
+    "
+    " ---
+    "
+    " Also, after toggling off the popup in Nvim from Terminal-Job mode, when we
+    " toggle it on again, the cursor is weirdly position (at the very bottom, on
+    " a non-existing line).
+    "
+    " And we are  in Terminal-Normal mode, even if we  were in Terminal-Job mode
+    " when  we toggled  off the  popup.   That's wrong.   We should  be back  in
+    " Terminal-Job mode.
+    "
+    " ---
+    "
+    " Here is a fix:
+    "
+    "     tno <buffer><nowait> <c-g><c-g> <c-g><c-g>
+    if has('nvim')
+        exe 'tno <buffer><nowait><silent> '..g:_termpopup_lhs..' <c-\><c-n>:call terminal#toggle_popup#main()<cr>'
+    else
+        exe printf('tno <buffer><nowait><silent> %s %s:<c-u>call terminal#toggle_popup#main()<cr>',
+            \ g:_termpopup_lhs, &l:termwinkey != '' ? &l:termwinkey : '<c-w>')
     endif
 endfu
 

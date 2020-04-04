@@ -18,6 +18,40 @@ fu terminal#setup() abort "{{{2
         \ 'from': expand('<sfile>:p')..':'..expand('<slnum>'),
         \ 'motions': [{'bwd': '[c',  'fwd': ']c'}]})
 
+    " Rationale:{{{
+    "
+    " Setting `'siso'` to a non-zero value is useless in a terminal buffer; long
+    " lines are automatically hard-wrapped.
+    " Besides, it makes the window's view "dance" when pressing `l` and reaching
+    " the end of a long line, which is jarring.
+    "
+    " ---
+    "
+    " We reset `'so'` because:
+    "
+    "    - it makes moving in a terminal buffer more consistent with tmux copy-mode
+    "
+    "    - it fixes an issue where the terminal flickers in Terminal-Job mode
+    "      (the issue only affects Nvim, but let's be consistent between Vim and Nvim)
+    "
+    "    - it could prevent other issues in the future (be it in Vim or in Nvim)
+    "
+    " ---
+    "
+    " Here's a MWE of the issue where the terminal flickers:
+    "
+    "     $ nvim -Nu NONE +'set so=3 | 10sp | term' +'startinsert'
+    "     # press C-g C-g Esc
+    "     # insert some random characters
+    "     # the terminal window flickers
+    "
+    " Imo, it's a bug:
+    " https://github.com/neovim/neovim/issues/11072#issuecomment-533828802
+    " But the devs closed the issue.
+    "
+    " There may be other similar issues:
+    " https://github.com/neovim/neovim/search?q=terminal+scrolloff&type=Issues
+    "}}}
     setl so=0 siso=0
 
     " `ZF` and `mq` don't work on relative paths.{{{
@@ -53,46 +87,18 @@ fu terminal#setup_neovim() abort "{{{2
 endfu
 
 fu terminal#setup_vim() abort "{{{2
+    if win_gettype() is# 'popup'
+        call s:set_popup()
+    endif
+
     " Neovim automatically disables `'wrap'` in a terminal buffer.
     " Not Vim. We do it in this function.
     setl nowrap
-    " Rationale:{{{
-    "
-    " Setting `'siso'` to a non-zero value is useless in a terminal buffer; long
-    " lines are automatically hard-wrapped.
-    " Besides, it makes the window's view "dance" when pressing `l` and reaching
-    " the end of a long line, which is jarring.
-    "
-    " ---
-    "
-    " We reset `'so'` because:
-    "
-    "    - it makes moving in a terminal buffer more consistent with tmux copy-mode
-    "
-    "    - it fixes an issue where the terminal flickers in Terminal-Job mode
-    "      (the issue only affects Nvim, but let's be consistent between Vim and Nvim)
-    "
-    "    - it could prevent other issues in the future (be it in Vim or in Nvim)
-    "
-    " ---
-    "
-    " Here's a MWE of the issue where the terminal flickers:
-    "
-    "     $ nvim -Nu NONE +'set so=3 | 10sp | term' +'startinsert'
-    "     # press C-g C-g Esc
-    "     # insert some random characters
-    "     # the terminal window flickers
-    "
-    " Imo, it's a bug:
-    " https://github.com/neovim/neovim/issues/11072#issuecomment-533828802
-    " But the devs closed the issue.
-    "
-    " There may be other similar issues:
-    " https://github.com/neovim/neovim/search?q=terminal+scrolloff&type=Issues
-    "}}}
-    " Here, `'termwinkey'` seems to behave a little like `C-r` in insert mode.
-    " With one difference though: when specifying the register, you need to prefix it with `"`.
-    exe 'nnoremap <buffer><nowait><silent> p i<c-e>'..&l:termwinkey..'""'
+
+    " Let us paste a register like we would in a regular buffer (e.g. `"ap`).
+    " Note that if `'termwinkey'` is not set, Vim falls back on `C-w`.  See `:h 'twk`.
+    exe printf('nno <buffer><expr><nowait><silent> p ''i<c-e>%s"''..v:register',
+        \ &l:termwinkey != '' ? &l:termwinkey : '<c-w>')
 
     " TODO: Once Vim supports `ModeChanged`, get rid of `s:fire_termenter()`.{{{
     "
@@ -110,13 +116,6 @@ fu terminal#setup_vim() abort "{{{2
     nno <buffer><nowait><silent> C  :<c-u>call <sid>fire_termenter('i<c-v><c-k>')<cr>
     nno <buffer><nowait><silent> cc :<c-u>call <sid>fire_termenter('i<c-v><c-e><c-v><c-u>')<cr>
 
-    " suppress error: Vim(wincmd):E994: Not allowed in a popup window
-    if win_gettype() is# 'popup'
-        nno <buffer><nowait> <c-h> <nop>
-        nno <buffer><nowait> <c-j> <nop>
-        nno <buffer><nowait> <c-k> <nop>
-        nno <buffer><nowait> <c-l> <nop>
-    endif
 endfu
 
 fu s:fire_termenter(rhs) abort "{{{2
@@ -238,6 +237,20 @@ fu s:mq() abort "{{{2
     let lines = map(getline(lnum1, lnum2), {_,v -> cwd..v})
     call setqflist([], ' ', {'lines': lines, 'title': ':'..lnum1..','..lnum2..'cgetbuffer'})
     cw
+endfu
+
+fu s:set_popup() abort "{{{2
+    " Like for  all local options,  the local  value of `'termwinkey'`  has been
+    " reset to its default value (empty string), which makes Vim use `C-w`.
+    " Set the option  again, so that we  get the same experience  as in terminal
+    " buffers in non-popup windows.
+    let &l:termwinkey = &g:termwinkey
+
+    " suppress error: Vim(wincmd):E994: Not allowed in a popup window
+    nno <buffer><nowait> <c-h> <nop>
+    nno <buffer><nowait> <c-j> <nop>
+    nno <buffer><nowait> <c-k> <nop>
+    nno <buffer><nowait> <c-l> <nop>
 endfu
 "}}}1
 " Utilities {{{1
