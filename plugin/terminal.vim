@@ -9,7 +9,7 @@ let g:loaded_terminal = 1
 "
 " It would interfere with our zsh snippets key binding.
 "}}}
-" And why `C-g C-k`?{{{
+" And why `C-g C-j`?{{{
 "
 " It's easy to press with the current layout.
 "}}}
@@ -19,7 +19,7 @@ let g:loaded_terminal = 1
 " *and* from Terminal-Job mode with the same key.
 " Have a look at `s:mapping()` in `autoload/terminal/toggle_popup.vim`.
 "}}}
-let g:_termpopup_lhs = '<c-g><c-k>'
+let g:_termpopup_lhs = '<c-g><c-j>'
 exe 'nno <silent> '..g:_termpopup_lhs..' :<c-u>call terminal#toggle_popup#main()<cr>'
 
 " Options {{{1

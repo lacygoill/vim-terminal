@@ -92,7 +92,8 @@ fu terminal#toggle_popup#main() abort "{{{2
 
     call s:terminal_job_mapping()
     call s:dynamic_border_color(has('nvim') ? border[1] : term_winid)
-    call s:persistent_view()
+    call s:preserve_view()
+    call s:preserve_lastmode()
     return ''
 endfu
 "}}}1
@@ -115,31 +116,38 @@ endfu
 
 fu s:terminal_job_mapping() abort "{{{2
     if !exists('g:_termpopup_lhs') | return | endif
-    " FIXME: When we press  `C-g C-g` in a terminal popup,  the zsh snippets
-    " are not visible until we press another key, or until the timeout.
-    " It's because of this mapping.
+
+    " Assumption: `g:_termpopup_lhs` starts with `<c-g>`
+    " Purpose:{{{
     "
-    "     $ nvim -Nu NONE +'set timeoutlen=3000 | tno <c-g><c-a> bcde' +term
-    "     " press i C-g C-g: nothing until timeout
-    "     " press i C-g C-g C-a: cde is inserted
+    " When we  press `C-g  C-g` in a  terminal popup, the  zsh snippets  are not
+    " visible until we press another key, or until the timeout.
     "
-    " ---
+    " Here's what happens.
     "
-    " Also, after toggling off the popup in Nvim from Terminal-Job mode, when we
-    " toggle it on again, the cursor is weirdly position (at the very bottom, on
-    " a non-existing line).
+    " When you press the first `C-g`, it's written in the typeahead buffer.
+    " It's  not  executed,  because  Vim  sees   that  you  have  a  mapping  in
+    " Terminal-Job mode starting with `C-g`.  Vim must wait until the timeout to
+    " know whether `C-g` should be remapped.
     "
-    " And we are  in Terminal-Normal mode, even if we  were in Terminal-Job mode
-    " when  we toggled  off the  popup.   That's wrong.   We should  be back  in
-    " Terminal-Job mode.
+    " When you  press the second  `C-g` immediately  after the first,  it's also
+    " written in the  typeahead buffer.  No mapping starts with  2 `C-g`, so now
+    " Vim knows that  you didn't want to use  the first `C-g` as the  start of a
+    " mapping; it can't be remapped and so gets executed, i.e. sent to the shell
+    " job.
     "
-    " ---
+    " But the  second `C-g`  suffers from the  same issue as  did the  first one
+    " previously; Vim must wait until the timeout.
     "
-    " Here is a fix:
-    "
-    "     tno <buffer><nowait> <c-g><c-g> <c-g><c-g>
+    " Issue: How to avoid this timeout?
+    " Solution: Install a  mapping which remaps  `C-g C-g` into itself,  so that
+    " when you press `C-g C-g`, it gets remapped and executed immediately.
+    "}}}
+    tno <buffer><nowait> <c-g><c-g> <c-g><c-g>
+
     if has('nvim')
-        exe 'tno <buffer><nowait><silent> '..g:_termpopup_lhs..' <c-\><c-n>:call terminal#toggle_popup#main()<cr>'
+        exe 'tno <buffer><nowait><silent> '..g:_termpopup_lhs
+            \ ..' <c-\><c-n>:call <sid>nvim_toggle()<cr>'
     else
         exe printf('tno <buffer><nowait><silent> %s %s:<c-u>call terminal#toggle_popup#main()<cr>',
             \ g:_termpopup_lhs, &l:termwinkey != '' ? &l:termwinkey : '<c-w>')
@@ -198,7 +206,7 @@ fu s:dynamic_border_color(winid) abort "{{{2
     augroup END
 endfu
 
-fu s:persistent_view() abort "{{{2
+fu s:preserve_view() abort "{{{2
     " Make the view persistent when we toggle the window on and off.{{{
     "
     " By  default, Vim  doesn't seem  to restore  the cursor  position, nor  the
@@ -211,6 +219,21 @@ fu s:persistent_view() abort "{{{2
     " That's not what is happening here; we re-display a buffer in a *new* window.
     "}}}
     if has_key(s:popup, 'view') | call winrestview(s:popup.view) | endif
+endfu
+
+fu s:preserve_lastmode() abort "{{{2
+    if !has('nvim') | return | endif
+    " if the  last time we  toggled the popup  off, we were  in Terminal-Job
+    " mode, we want to get back in Terminal-Job mode now
+    if get(s:popup, 'lastmode', 'n') is# 't'
+        call feedkeys('i', 'n')
+    endif
+    let s:popup.lastmode = 'n'
+endfu
+
+fu s:nvim_toggle() abort "{{{2
+    let s:popup.lastmode = 't'
+    call terminal#toggle_popup#main()
 endfu
 "}}}1
 " Util {{{1

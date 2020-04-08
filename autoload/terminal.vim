@@ -244,7 +244,7 @@ fu s:set_popup() abort "{{{2
     " reset to its default value (empty string), which makes Vim use `C-w`.
     " Set the option  again, so that we  get the same experience  as in terminal
     " buffers in non-popup windows.
-    let &l:termwinkey = &g:termwinkey
+    setl twk<
 
     " suppress error: Vim(wincmd):E994: Not allowed in a popup window
     nno <buffer><nowait> <c-h> <nop>
