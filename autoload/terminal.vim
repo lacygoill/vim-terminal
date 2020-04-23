@@ -199,7 +199,7 @@ fu s:fire_termenter(rhs) abort "{{{2
     " may have an impact even with a guard such as `if mode() is# 't'`).
     "}}}
     if exists('#User#TermEnter') | do <nomodeline> User TermEnter | endif
-    if len(a:rhs) == 1 | return | endif
+    if strlen(a:rhs) == 1 | return | endif
     call term_sendkeys('', a:rhs[1:])
 endfu
 
