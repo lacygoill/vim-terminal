@@ -88,7 +88,18 @@ fu terminal#toggle_popup#main() abort "{{{2
     "    - this autocmd will do it already;
     "      doing it a second time would raise `E716` (yes, even with a bang after `:unlet`)
     "}}}
-    au BufWinLeave <buffer> ++once unlet! s:popup.winid
+    " Do *not* use `BufWinLeave`.{{{
+    "
+    " If you press `gf` on a file path, `BufWinLeave` is fired, but the popup is
+    " not closed; we don't want the `winid` key to be removed, it's still valid.
+    " OTOH, `WinLeave` is *not* fired when we press `gf`.
+    "
+    " Note  that a  popup terminal  window  is not  meant to  display a  regular
+    " buffer.   If  you manage  to  do  it (e.g.  by  pressing  `gf` on  a  file
+    " path),  you may  encounter all  sorts  of weird  issues (cursor  position,
+    " `popup_close()` failure, ...).
+    "}}}
+    au WinLeave <buffer> ++once unlet! s:popup.winid
 
     call s:terminal_job_mapping()
     call s:dynamic_border_color(has('nvim') ? border[1] : term_winid)
@@ -150,7 +161,7 @@ fu s:terminal_job_mapping() abort "{{{2
             \ ..' <c-\><c-n>:call <sid>nvim_toggle()<cr>'
     else
         exe printf('tno <buffer><nowait><silent> %s %s:<c-u>call terminal#toggle_popup#main()<cr>',
-            \ g:_termpopup_lhs, getbufvar(expand('<afile>:p'), '&twk', '<c-w>'))
+            \ g:_termpopup_lhs, &l:twk == '' ? '<c-w>' : &l:twk)
     endif
 endfu
 
