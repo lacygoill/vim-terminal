@@ -150,7 +150,7 @@ fu s:terminal_job_mapping() abort "{{{2
             \ ..' <c-\><c-n>:call <sid>nvim_toggle()<cr>'
     else
         exe printf('tno <buffer><nowait><silent> %s %s:<c-u>call terminal#toggle_popup#main()<cr>',
-            \ g:_termpopup_lhs, &l:termwinkey != '' ? &l:termwinkey : '<c-w>')
+            \ g:_termpopup_lhs, getbufvar(expand('<afile>:p'), '&twk', '<c-w>'))
     endif
 endfu
 

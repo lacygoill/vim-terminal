@@ -98,7 +98,7 @@ fu terminal#setup_vim() abort "{{{2
     " Let us paste a register like we would in a regular buffer (e.g. `"ap`).
     " Note that if `'termwinkey'` is not set, Vim falls back on `C-w`.  See `:h 'twk`.
     exe printf('nno <buffer><expr><nowait><silent> p ''i<c-e>%s"''..v:register',
-        \ &l:termwinkey != '' ? &l:termwinkey : '<c-w>')
+        \ &l:twk == '' ? '<c-w>' : &l:twk)
 
     " TODO: Once Vim supports `ModeChanged`, get rid of `s:fire_termenter()`.{{{
     "
