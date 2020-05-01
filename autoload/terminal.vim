@@ -95,10 +95,13 @@ fu terminal#setup_vim() abort "{{{2
     " Not Vim. We do it in this function.
     setl nowrap
 
+    let twk = &l:twk == '' ? '<c-w>' : &l:twk
     " Let us paste a register like we would in a regular buffer (e.g. `"ap`).
     " Note that if `'termwinkey'` is not set, Vim falls back on `C-w`.  See `:h 'twk`.
-    exe printf('nno <buffer><expr><nowait><silent> p ''i<c-e>%s"''..v:register',
-        \ &l:twk == '' ? '<c-w>' : &l:twk)
+    exe printf('nno <buffer><expr><nowait> p ''i<c-e>%s"''..v:register', twk)
+    " we don't a timeout when we press the termwinkey + `C-w` to focus the next window:
+    " https://vi.stackexchange.com/a/24983/17449
+    exe printf('tno <buffer><nowait> %s<c-w> %s<c-w>', twk , twk)
 
     " TODO: Once Vim supports `ModeChanged`, get rid of `s:fire_termenter()`.{{{
     "
@@ -115,7 +118,6 @@ fu terminal#setup_vim() abort "{{{2
 
     nno <buffer><nowait><silent> C  :<c-u>call <sid>fire_termenter('i<c-v><c-k>')<cr>
     nno <buffer><nowait><silent> cc :<c-u>call <sid>fire_termenter('i<c-v><c-e><c-v><c-u>')<cr>
-
 endfu
 
 fu s:fire_termenter(rhs) abort "{{{2

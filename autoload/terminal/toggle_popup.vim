@@ -90,9 +90,14 @@ fu terminal#toggle_popup#main() abort "{{{2
     "}}}
     " Do *not* use `BufWinLeave`.{{{
     "
-    " If you press `gf` on a file path, `BufWinLeave` is fired, but the popup is
-    " not closed; we don't want the `winid` key to be removed, it's still valid.
-    " OTOH, `WinLeave` is *not* fired when we press `gf`.
+    " Listening  to `BufWinLeave`  can lead  to gross  cascading problems  after
+    " pressing `gf` on a file path.
+    " That's because, in  that case, `BufWinLeave` is fired and  the `winid` key
+    " is removed; but  the popup is not  closed, so we don't want  `winid` to be
+    " removed, it's still valid.
+    "
+    " OTOH,  `WinLeave` is  *not* fired  when we  press `gf`,  so we  can safely
+    " listen to it.
     "
     " Note  that a  popup terminal  window  is not  meant to  display a  regular
     " buffer.   If  you manage  to  do  it (e.g.  by  pressing  `gf` on  a  file
