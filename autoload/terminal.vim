@@ -27,30 +27,8 @@ fu terminal#setup() abort "{{{2
     "
     " ---
     "
-    " We reset `'so'` because:
-    "
-    "    - it makes moving in a terminal buffer more consistent with tmux copy-mode
-    "
-    "    - it fixes an issue where the terminal flickers in Terminal-Job mode
-    "      (the issue only affects Nvim, but let's be consistent between Vim and Nvim)
-    "
-    "    - it could prevent other issues in the future (be it in Vim or in Nvim)
-    "
-    " ---
-    "
-    " Here's a MWE of the issue where the terminal flickers:
-    "
-    "     $ nvim -Nu NONE +'set so=3 | 10sp | term' +'startinsert'
-    "     # press C-g C-g Esc
-    "     # insert some random characters
-    "     # the terminal window flickers
-    "
-    " Imo, it's a bug:
-    " https://github.com/neovim/neovim/issues/11072#issuecomment-533828802
-    " But the devs closed the issue.
-    "
-    " There may be other similar issues:
-    " https://github.com/neovim/neovim/search?q=terminal+scrolloff&type=Issues
+    " We  reset  `'so'` because  it  makes  moving  in  a terminal  buffer  more
+    " consistent with tmux copy-mode.
     "}}}
     setl so=0 siso=0
 
