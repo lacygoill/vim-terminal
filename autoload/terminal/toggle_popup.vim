@@ -117,7 +117,12 @@ endfu
 fu s:close() abort "{{{2
     let s:popup.view = winsaveview()
     if !has('nvim')
-        call popup_close(s:popup.winid)
+        try
+            call popup_close(s:popup.winid)
+        " can happen after you've loaded a regular file in a terminal popup by pressing `gf`
+        catch /^Vim\%((\a\+)\)\=:E994:/
+            return lg#catch()
+        endtry
     else
         if s:popup.winid == win_getid()
             close

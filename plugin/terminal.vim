@@ -45,8 +45,7 @@ endif
 
 " Autocmds {{{1
 
-augroup my_terminal
-    au!
+augroup my_terminal | au!
     if has('nvim')
         au TermOpen * call terminal#setup() | call terminal#setup_neovim() | startinsert
     else
@@ -98,8 +97,7 @@ augroup END
 "
 " It doesn't work, but you get the idea.
 "}}}
-augroup install_escape_mapping_in_terminal
-    au!
+augroup install_escape_mapping_in_terminal | au!
     if !has('nvim')
         " Do *not* install this mapping:  `tno <buffer> <esc>: <c-\><c-n>:`{{{
         "
