@@ -96,6 +96,32 @@ fu terminal#setup_vim() abort "{{{2
 
     nno <buffer><nowait><silent> C  :<c-u>call <sid>fire_termenter('i<c-v><c-k>')<cr>
     nno <buffer><nowait><silent> cc :<c-u>call <sid>fire_termenter('i<c-v><c-e><c-v><c-u>')<cr>
+
+    augroup term_preserve_cwd
+        au! * <buffer>
+        " Useful to preserve the local cwd after you've temporarily loaded a different buffer in the terminal window.{{{
+        "
+        " MWE:
+        "
+        "     $ cd
+        "     $ vim
+        "     :term
+        "     $ cd /etc
+        "     $ ls
+        "     " press:  C-\ C-n
+        "     " move onto the 'group' file
+        "     " press:  gf
+        "     " press:  C-^
+        "     " move onto the 'hosts' file
+        "     " press:  gf
+        "     E447: Can't find file "/etc /hosts" in path~
+        "
+        " For some  reason, this is not  an issue in  Nvim, so we don't  need to
+        " install the autocmds there too.
+        "}}}
+        au BufWinLeave <buffer> let b:_cwd = getcwd()
+        au BufWinEnter <buffer> exe 'lcd '..b:_cwd
+    augroup END
 endfu
 
 fu s:fire_termenter(rhs) abort "{{{2

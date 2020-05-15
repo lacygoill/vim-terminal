@@ -40,6 +40,11 @@ call s:sanitize()
 
 let s:popup = {}
 
+const s:DEBUG = 0
+if s:DEBUG
+    let g:popup = s:popup
+endif
+
 " Interface {{{1
 fu terminal#toggle_popup#main() abort "{{{2
     " Why don't you set and inspect an ad-hoc buffer-local variable?{{{
@@ -104,7 +109,16 @@ fu terminal#toggle_popup#main() abort "{{{2
     " path),  you may  encounter all  sorts  of weird  issues (cursor  position,
     " `popup_close()` failure, ...).
     "}}}
-    au WinLeave <buffer> ++once unlet! s:popup.winid
+    " Do *not* use `<buffer>`.{{{
+    "
+    " There is no guarantee that when you toggle off the popup, it will be still
+    " displaying the terminal buffer.
+    "
+    " `*` would  cause issues in Nvim  if you try  to toggle on the  popup after
+    " toggling it  off while it was  displaying a regular buffer  (can happen if
+    " you press `gf` on a file path).
+    "}}}
+    au WinLeave * ++once unlet! s:popup.winid
 
     call s:terminal_job_mapping()
     call s:dynamic_border_color(has('nvim') ? border[1] : term_winid)
@@ -305,9 +319,9 @@ fu s:is_open_on_current_tabpage() abort "{{{2
         " the value  -1.  And if  it's only displayed  on another tab  page, its
         " value will be the index of that tab page.
         "}}}
-        return popup_getoptions(s:popup.winid).tabpage == 0
+        return get(popup_getoptions(s:popup.winid), 'tabpage', -1) == 0
     else
-        return getwininfo(s:popup.winid)[0].tabnr == tabpagenr()
+        return get(get(getwininfo(s:popup.winid), 0), 'tabnr') == tabpagenr()
     endif
 endfu
 

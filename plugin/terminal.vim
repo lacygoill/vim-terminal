@@ -3,6 +3,21 @@ if exists('g:loaded_terminal')
 endif
 let g:loaded_terminal = 1
 
+" FAQ {{{1
+" How to change the function name prefix `Tapi_`? {{{2
+"
+" Use the `term_setapi()` function.
+"
+"     :call term_setapi(buf, 'Myapi_')
+"                       ^^^
+"                       number of terminal buffer for which you want to change the prefix
+"
+" Its effect  is local  to a given  buffer, so if  you want  to apply it  to all
+" terminal buffers, you'll need an autocmd.
+"
+"     au TerminalWinOpen * call term_setapi(str2nr(expand('<abuf>')), 'Myapi_')
+"}}}1
+
 " Mappings {{{1
 
 " Why not `C-g C-g`?{{{
@@ -117,4 +132,55 @@ augroup install_escape_mapping_in_terminal | au!
     endif
     au FileType fzf tunmap <buffer> <esc><esc>
 augroup END
+
+" Commands {{{1
+
+" We sometimes – accidentally – start a nested (N)Vim instance inside a N(Vim) terminal.
+" Let's fix this by re-opening the file in the outer instance.
+if !empty($VIM_TERMINAL) || !empty($NVIM_TERMINAL)
+    " Why delay until `VimEnter`?{{{
+    "
+    " During my limited tests, it didn't  seem necessary, but I'm concerned that
+    " the (N)Vim hasn't loaded the file yet when this plugin is sourced.
+    "
+    " Also, without the  autocmd, sometimes, a bunch of empty  lines are written
+    " in the  terminal (only  seems to  happen when we've  started a  nested Vim
+    " instance, not a nested Nvim).
+    "}}}
+    au VimEnter * call terminal#unnest#main()
+endif
+
+" Functions {{{1
+fu Tapi_lcd(_, cwd) abort "{{{2
+    " Change (N)Vim's window local working directory so that it matches the shell's cwd.{{{
+    "
+    " The function  is called automatically  from the  zsh hook `chpwd`,  via an
+    " OSC51 sequence in Vim,  and via `nvr` in Nvim.  Useful to  help Vim find a
+    " file when pressing `gf` (& friends) while in a terminal buffer.
+    "}}}
+    exe 'lcd '..a:cwd
+    return ''
+endfu
+
+fu Tapi_drop(_, file) abort "{{{2
+    " Open a file in the *current* (N)Vim instance, rather than in a nested one.{{{
+    "
+    " The function  can be called manually  via the custom shell  script `vimr`;
+    " it's  also  called  automatically by  `terminal#unnest#main()`  if  (N)Vim
+    " detects that it's running inside an (N)Vim terminal.
+    "
+    " Useful  to  avoid the  awkward  user  experience  inside a  nested  (N)Vim
+    " instance (and all the pitfalls which come with it).
+    "}}}
+    if !has('nvim') && win_gettype() is# 'popup' || a:file is# ''
+        return
+    endif
+    exe 'tab drop '..fnameescape(a:file)
+    " to prevent 0 from being printed in Nvim's terminal{{{
+    "
+    " This is because  the function is invoked via  the `--remote-expr` argument
+    " of the `nvr` command.
+    "}}}
+    return ''
+endfu
 
