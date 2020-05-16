@@ -133,10 +133,8 @@ augroup install_escape_mapping_in_terminal | au!
     au FileType fzf tunmap <buffer> <esc><esc>
 augroup END
 
-" Commands {{{1
-
 " We sometimes – accidentally – start a nested (N)Vim instance inside a N(Vim) terminal.
-" Let's fix this by re-opening the file in the outer instance.
+" Let's fix this by re-opening the file(s) in the outer instance.
 if !empty($VIM_TERMINAL) || !empty($NVIM_TERMINAL)
     " Why delay until `VimEnter`?{{{
     "
@@ -151,7 +149,51 @@ if !empty($VIM_TERMINAL) || !empty($NVIM_TERMINAL)
 endif
 
 " Functions {{{1
-fu Tapi_lcd(_, cwd) abort "{{{2
+" Interface {{{2
+fu Tapi_call(_, funcname) abort "{{{3
+    " call an arbitrary function
+    " We use it e.g. to correctly highlight a buffer containing ansi escape sequences{{{
+    "
+    "     $ vim +term
+    "     $ trans word 2>&1 | vipe >/dev/null
+    "
+    " See `terminal#unnest#main()`.
+    "}}}
+    call call(a:funcname, [])
+endfu
+
+fu Tapi_drop(_, list_of_files) abort "{{{3
+    " Open a file in the *current* (N)Vim instance, rather than in a nested one.{{{
+    "
+    " The function  can be called manually  via the custom shell  script `vimr`;
+    " it's  also  called  automatically by  `terminal#unnest#main()`  if  (N)Vim
+    " detects that it's running inside an (N)Vim terminal.
+    "
+    " Useful  to  avoid the  awkward  user  experience  inside a  nested  (N)Vim
+    " instance (and all the pitfalls which come with it).
+    "}}}
+    if empty(a:list_of_files)
+        return ''
+    else
+        let files = readfile(a:list_of_files)
+        if empty(files) | return '' | endif
+    endif
+    call s:stay_in_terminal_job_mode()
+    try
+        exe 'tabnew | drop '..join(map(files, {_,v -> fnameescape(v)}))
+    " E994, E863, ...
+    catch
+        return lg#catch()
+    endtry
+    " to prevent 0 from being printed in Nvim's terminal{{{
+    "
+    " This is because  the function is invoked via  the `--remote-expr` argument
+    " of the `nvr` command.
+    "}}}
+    return ''
+endfu
+
+fu Tapi_lcd(_, cwd) abort "{{{3
     " Change (N)Vim's window local working directory so that it matches the shell's cwd.{{{
     "
     " The function  is called automatically  from the  zsh hook `chpwd`,  via an
@@ -162,25 +204,24 @@ fu Tapi_lcd(_, cwd) abort "{{{2
     return ''
 endfu
 
-fu Tapi_drop(_, file) abort "{{{2
-    " Open a file in the *current* (N)Vim instance, rather than in a nested one.{{{
-    "
-    " The function  can be called manually  via the custom shell  script `vimr`;
-    " it's  also  called  automatically by  `terminal#unnest#main()`  if  (N)Vim
-    " detects that it's running inside an (N)Vim terminal.
-    "
-    " Useful  to  avoid the  awkward  user  experience  inside a  nested  (N)Vim
-    " instance (and all the pitfalls which come with it).
-    "}}}
-    if !has('nvim') && win_gettype() is# 'popup' || a:file is# ''
-        return
+fu Tapi_man(_, page) abort "{{{3
+    " open manpage in outer Vim
+    if exists(':Man') != 2
+        echom ':Man needs to be installed' | return ''
     endif
-    exe 'tab drop '..fnameescape(a:file)
-    " to prevent 0 from being printed in Nvim's terminal{{{
-    "
-    " This is because  the function is invoked via  the `--remote-expr` argument
-    " of the `nvr` command.
-    "}}}
+    call s:stay_in_terminal_job_mode()
+    try
+        exe 'tab Man '..a:page
+    catch
+        return lg#catch()
+    endtry
     return ''
+endfu
+"}}}2
+" Utilities {{{2
+fu s:stay_in_terminal_job_mode() abort "{{{3
+    if has('nvim')
+        au BufEnter <buffer> ++once if mode() is# 'n' | startinsert | endif
+    endif
 endfu
 
