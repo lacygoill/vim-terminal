@@ -2,6 +2,31 @@
 fu terminal#setup() abort "{{{2
     " in this function, put settings which should be applied both in Vim and Nvim
 
+    " Let us paste a register like we would in a regular buffer (e.g. `"ap`).{{{
+    "
+    " In Vim, the sequence to press is awkward:
+    "
+    "    ┌─────┬───────────────────────────────────────────┐
+    "    │ key │                  meaning                  │
+    "    ├─────┼───────────────────────────────────────────┤
+    "    │ i   │ enter Terminal-Job mode                   │
+    "    ├─────┼───────────────────────────────────────────┤
+    "    │ C-e │ move to the end of the shell command-line │
+    "    ├─────┼───────────────────────────────────────────┤
+    "    │ C-w │ or whatever key is set in 'termwinkey'    │
+    "    ├─────┼───────────────────────────────────────────┤
+    "    │ "   │ specify a register name                   │
+    "    ├─────┼───────────────────────────────────────────┤
+    "    │ x   │ name of the register to paste             │
+    "    └─────┴───────────────────────────────────────────┘
+    "
+    " And  paste bracket  control codes  are not  inserted around  the register,
+    " neither in  Vim nor in Nvim.   As a result, (N)Vim  automatically executes
+    " any text  whenever it encounters a  newline.  We don't want  that; we just
+    " want to insert some text.
+    "}}}
+    nno <buffer><expr><nowait> p <sid>p()
+
     nno <buffer><nowait><silent> D  i<c-k><c-\><c-n>
     nno <buffer><nowait><silent> dd i<c-e><c-u><c-\><c-n>
 
@@ -12,7 +37,7 @@ fu terminal#setup() abort "{{{2
 
     noremap <buffer><expr><nowait><silent> [c brackets#move#regex('shell_prompt', 0)
     noremap <buffer><expr><nowait><silent> ]c brackets#move#regex('shell_prompt', 1)
-    sil! call repmap#make#all({
+    sil! call repmap#make#repeatable({
         \ 'mode': '',
         \ 'buffer': 1,
         \ 'from': expand('<sfile>:p')..':'..expand('<slnum>'),
@@ -73,11 +98,11 @@ fu terminal#setup_vim() abort "{{{2
     " Not Vim. We do it in this function.
     setl nowrap
 
+    " If `'termwinkey'` is not set, Vim falls back on `C-w`.  See `:h 'twk`.
     let twk = &l:twk == '' ? '<c-w>' : &l:twk
-    " Let us paste a register like we would in a regular buffer (e.g. `"ap`).
-    " Note that if `'termwinkey'` is not set, Vim falls back on `C-w`.  See `:h 'twk`.
-    exe printf('nno <buffer><expr><nowait> p ''i<c-e>%s"''..v:register', twk)
-    " we don't a timeout when we press the termwinkey + `C-w` to focus the next window:
+    " don't execute an inserted register when it contains a newline
+    exe 'tno <buffer><expr><nowait> '..twk..'" <sid>insert_register()'
+    " we don't want a timeout when we press the termwinkey + `C-w` to focus the next window:
     " https://vi.stackexchange.com/a/24983/17449
     exe printf('tno <buffer><nowait> %s<c-w> %s<c-w>', twk , twk)
 
@@ -120,7 +145,7 @@ fu terminal#setup_vim() abort "{{{2
         " install the autocmds there too.
         "}}}
         au BufWinLeave <buffer> let b:_cwd = getcwd()
-        au BufWinEnter <buffer> exe 'lcd '..b:_cwd
+        au BufWinEnter <buffer> if exists('b:_cwd') | exe 'lcd '..b:_cwd | endif
     augroup END
 endfu
 
@@ -237,12 +262,36 @@ fu s:inex() abort "{{{2
     endif
 endfu
 
+fu s:insert_register() abort "{{{2
+    let numeric = range(10)
+    let alpha = map(range(char2nr('a'), char2nr('z')), 'nr2char(v:val)')
+    let other = ['-', '*', '+', '/', '=']
+    let reg = nr2char(getchar())
+    if index(numeric + alpha + other, reg) == -1
+        return ''
+    endif
+    call s:use_bracketed_paste(reg)
+    let twk = &l:twk == '' ? "\<c-w>" : eval('"\'..&l:twk..'"')
+    return twk..'"'..reg
+endfu
+
 fu s:mq() abort "{{{2
     let cwd = s:getcwd()
     let [lnum1, lnum2] = [line("'<"), line("'>")]
     let lines = map(getline(lnum1, lnum2), {_,v -> cwd..v})
     call setqflist([], ' ', {'lines': lines, 'title': ':'..lnum1..','..lnum2..'cgetbuffer'})
     cw
+endfu
+
+fu s:p() abort "{{{2
+    let reg = v:register
+    call s:use_bracketed_paste(reg)
+    if !has('nvim')
+        let twk = &l:twk == '' ? "\<c-w>" : eval('"\'..&l:twk..'"')
+        return "i\<c-e>"..twk..'"'..reg
+    else
+        return '"'..reg..'pi'
+    endif
 endfu
 
 fu s:set_popup() abort "{{{2
@@ -273,5 +322,19 @@ fu s:getcwd() abort "{{{2
     let cwd = substitute(cwd, '^\~tmp', '/run/user/1000/tmp', '')
     let cwd = substitute(cwd, '^\~xdcc', $HOME..'/Dowloads/XDCC', '')
     return cwd..'/'
+endfu
+
+fu s:use_bracketed_paste(reg) abort "{{{2
+    " don't execute anything, even if the register contains newlines
+    let regval = getreg(a:reg)
+    if regval =~# "\n"
+        if has('nvim')
+            let [before, after] = ["\e[200~", "\e[201~"]
+        else
+            let [before, after] = [&t_PS, &t_PE]
+        endif
+        call setreg(a:reg, before..regval..after, getregtype(a:reg))
+        call timer_start(0, {-> setreg(a:reg, regval, getregtype(a:reg))})
+    endif
 endfu
 

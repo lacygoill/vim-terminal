@@ -139,7 +139,7 @@ if !empty($VIM_TERMINAL) || !empty($NVIM_TERMINAL)
     " Why delay until `VimEnter`?{{{
     "
     " During my limited tests, it didn't  seem necessary, but I'm concerned that
-    " the (N)Vim hasn't loaded the file yet when this plugin is sourced.
+    " (N)Vim hasn't loaded the file yet when this plugin is sourced.
     "
     " Also, without the  autocmd, sometimes, a bunch of empty  lines are written
     " in the  terminal (only  seems to  happen when we've  started a  nested Vim
@@ -150,18 +150,6 @@ endif
 
 " Functions {{{1
 " Interface {{{2
-fu Tapi_call(_, funcname) abort "{{{3
-    " call an arbitrary function
-    " We use it e.g. to correctly highlight a buffer containing ansi escape sequences{{{
-    "
-    "     $ vim +term
-    "     $ trans word 2>&1 | vipe >/dev/null
-    "
-    " See `terminal#unnest#main()`.
-    "}}}
-    call call(a:funcname, [])
-endfu
-
 fu Tapi_drop(_, list_of_files) abort "{{{3
     " Open a file in the *current* (N)Vim instance, rather than in a nested one.{{{
     "
@@ -193,14 +181,13 @@ fu Tapi_drop(_, list_of_files) abort "{{{3
     return ''
 endfu
 
-fu Tapi_lcd(_, cwd) abort "{{{3
-    " Change (N)Vim's window local working directory so that it matches the shell's cwd.{{{
-    "
-    " The function  is called automatically  from the  zsh hook `chpwd`,  via an
-    " OSC51 sequence in Vim,  and via `nvr` in Nvim.  Useful to  help Vim find a
-    " file when pressing `gf` (& friends) while in a terminal buffer.
-    "}}}
-    exe 'lcd '..a:cwd
+fu Tapi_exe(_, arglist) abort "{{{3
+    if type(a:arglist) != v:t_string
+        return ''
+    endif
+    let cmd = a:arglist
+    " run an arbitrary Ex command
+    exe cmd
     return ''
 endfu
 
