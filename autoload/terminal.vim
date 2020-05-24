@@ -333,7 +333,9 @@ fu s:use_bracketed_paste(reg) abort "{{{2
         else
             let [before, after] = [&t_PS, &t_PE]
         endif
-        call setreg(a:reg, before..regval..after, getregtype(a:reg))
+        let new = before..regval..after
+        " Don't use the `'l'` type.  It would cause the automatic execution of the pasted command.
+        call setreg(a:reg, new, 'c')
         call timer_start(0, {-> setreg(a:reg, regval, getregtype(a:reg))})
     endif
 endfu
