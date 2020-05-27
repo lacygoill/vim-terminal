@@ -123,7 +123,7 @@ fu terminal#toggle_popup#main() abort "{{{2
     call s:terminal_job_mapping()
     call s:dynamic_border_color(has('nvim') ? border[1] : term_winid)
     call s:preserve_view()
-    call s:preserve_lastmode()
+    if has('nvim') | call s:preserve_lastmode() | endif
     return ''
 endfu
 "}}}1
@@ -257,11 +257,10 @@ fu s:preserve_view() abort "{{{2
 endfu
 
 fu s:preserve_lastmode() abort "{{{2
-    if !has('nvim') | return | endif
     " if the  last time we  toggled the popup  off, we were  in Terminal-Job
     " mode, we want to get back in Terminal-Job mode now
     if get(s:popup, 'lastmode', 'n') is# 't'
-        call feedkeys('i', 'n')
+        call feedkeys('i', 'in')
     endif
     let s:popup.lastmode = 'n'
 endfu
