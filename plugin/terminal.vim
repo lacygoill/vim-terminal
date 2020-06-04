@@ -71,7 +71,7 @@ augroup END
 " Why do you install a mapping whose lhs is `Esc Esc`?{{{
 "
 " In Vim, we can't use `Esc` in the  lhs of a mapping, because any key producing
-" a sequence  of keycodes  containing `Esc`,  would be  subject to  an undesired
+" a sequence  of key codes  containing `Esc`, would  be subject to  an undesired
 " remapping (`M-b`, `M-f`, `Left`, `Right`, ...).
 "
 " Example:

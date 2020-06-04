@@ -228,7 +228,7 @@ fu s:dynamic_border_color(winid) abort "{{{2
             " only  thanks to  a side-effect  of an  autocmd in  `vim-readline`,
             " whose effect can be reproduced with:
             "
-            "     au CmdlineEnter: call timer_start(0, {-> 0})
+            "     au CmdlineEnter : call timer_start(0, {-> 0})
             "
             " But that's probably brittle, and I don't fully understand what happens.
             " I guess we have some terminal mappings which trigger `CmdlineEnter`,
