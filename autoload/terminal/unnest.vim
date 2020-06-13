@@ -21,16 +21,15 @@ fu terminal#unnest#main() abort "{{{2
     "}}}
     if s:nothing_to_read() | return | endif
 
-    let terminal = s:terminal()
     if s:vim_used_as_manpager()
-        return s:open_manpage(terminal)
+        return s:open_manpage()
     endif
 
     let filelist = s:write_filepaths()
     let used_in_a_pipeline = s:called_by_vipe() || expand('%:p') is# ''
-    call s:open_files(terminal, filelist)
+    call s:open_files(filelist)
     if used_in_a_pipeline
-        call s:fire_stdinreadpost(terminal)
+        call s:fire_stdinreadpost()
     endif
 
     " Why the delay?{{{
@@ -45,17 +44,13 @@ fu terminal#unnest#main() abort "{{{2
 endfu
 "}}}1
 " Core {{{1
-fu s:open_manpage(outer) abort "{{{2
+fu s:open_manpage() abort "{{{2
     let page = matchstr(expand('%:p'), 'man://\zs.*')
-    if a:outer is# 'vim'
-        " Why `json_encode()` instead of `string()`?{{{
-        "
-        " The man page must be surrounded by double quotes, not single quotes.
-        "}}}
-        call writefile([printf('%s]51;["call", "Tapi_man", %s]%s', "\033", json_encode(page), "\007")], '/dev/tty', 'b')
-    else
-        call system('nvr --remote-expr "Tapi_man(0, '..string(page)..')"')
-    endif
+    " Why `json_encode()` instead of `string()`?{{{
+    "
+    " The man page must be surrounded by double quotes, not single quotes.
+    "}}}
+    call writefile([printf('%s]51;["call", "Tapi_man", %s]%s', "\033", json_encode(page), "\007")], '/dev/tty', 'b')
     qa!
 endfu
 
@@ -100,7 +95,7 @@ fu s:write_filepaths() abort "{{{2
     return filelist
 endfu
 
-fu s:open_files(outer, filelist) abort "{{{2
+fu s:open_files(filelist) abort "{{{2
     " to avoid error message due to swap files when opening files in the outer Vim
     " Why the bang?{{{
     "
@@ -113,31 +108,22 @@ fu s:open_files(outer, filelist) abort "{{{2
     "     $ some cmd | vim -
     "}}}
     %bd!
-    if a:outer is# 'vim'
-        " open files in the outer Vim instance using `:h terminal-api`
-        call writefile([printf('%s]51;["call", "Tapi_drop", "%s"]%s', "\033", a:filelist, "\007")], '/dev/tty', 'b')
-    else
-        " open files in the outer Nvim instance using `nvr`: https://github.com/mhinz/neovim-remote
-        call system('nvr --remote-expr "Tapi_drop(0, '..string(a:filelist)..')"')
-    endif
+    " open files in the outer Vim instance using `:h terminal-api`
+    call writefile([printf('%s]51;["call", "Tapi_drop", "%s"]%s', "\033", a:filelist, "\007")], '/dev/tty', 'b')
 endfu
 
-fu s:fire_stdinreadpost(outer) abort "{{{2
+fu s:fire_stdinreadpost() abort "{{{2
     " correctly highlight a buffer containing ansi escape sequences{{{
     "
     "     $ vim +term
     "     $ trans word 2>&1 | vipe >/dev/null
     "}}}
-    if a:outer is# 'vim'
-        call writefile([printf('%s]51;["call", "Tapi_exe", "do <nomodeline> StdinReadPost"]%s', "\033", "\007")], '/dev/tty', 'b')
-    else
-        call system('nvr --remote-expr "Tapi_exe(0, ''do <nomodeline> StdinReadPost'')"')
-    endif
+    call writefile([printf('%s]51;["call", "Tapi_exe", "do <nomodeline> StdinReadPost"]%s', "\033", "\007")], '/dev/tty', 'b')
 endfu
 "}}}1
 " Utilities {{{1
 fu s:in_vim_terminal() abort "{{{2
-    return !empty($VIM_TERMINAL) || !empty($NVIM_TERMINAL)
+    return !empty($VIM_TERMINAL)
 endfu
 
 fu s:nothing_to_read() abort "{{{2
@@ -146,10 +132,6 @@ endfu
 
 fu s:vim_used_as_manpager() abort "{{{2
     return expand('%:p') =~# '^\Cman://'
-endfu
-
-fu s:terminal() abort "{{{2
-    return !empty($VIM_TERMINAL) ? 'vim' : 'nvim'
 endfu
 
 fu s:called_by_vipe() abort "{{{2

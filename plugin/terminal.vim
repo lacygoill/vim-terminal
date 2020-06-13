@@ -39,33 +39,27 @@ exe 'nno <silent> '..g:_termpopup_lhs..' :<c-u>call terminal#toggle_popup#main()
 
 " Options {{{1
 
-if !has('nvim')
-    " What does `'termwinkey'` do?{{{
-    "
-    " It controls which key can be pressed to issue a command to Vim rather than
-    " the foreground shell process in the terminal.
-    "}}}
-    " Why do yo change its value?{{{
-    "
-    " By default, its value is `<c-w>`; so  you can press `C-w :` to enter Vim's
-    " command-line; but I don't like that `c-w` should delete the previous word.
-    "}}}
-    " Warning: do *not* use `C-g`{{{
-    "
-    " If you do, when  we want to use one of our zsh  snippets, we would need to
-    " press `C-g` 4 times instead of twice.
-    "}}}
-    set termwinkey=<c-s>
-endif
+" What does `'termwinkey'` do?{{{
+"
+" It controls which key can be pressed to issue a command to Vim rather than the
+" foreground shell process in the terminal.
+"}}}
+" Why do yo change its value?{{{
+"
+" By default,  its value is  `<c-w>`; so  you can press  `C-w :` to  enter Vim's
+" command-line; but I don't like that `c-w` should delete the previous word.
+"}}}
+" Warning: do *not* use `C-g`{{{
+"
+" If you do, when we want to use one of our zsh snippets, we would need to press
+" `C-g` 4 times instead of twice.
+"}}}
+set termwinkey=<c-s>
 
 " Autocmds {{{1
 
 augroup my_terminal | au!
-    if has('nvim')
-        au TermOpen * call terminal#setup() | call terminal#setup_neovim() | startinsert
-    else
-        au TerminalWinOpen * call terminal#setup() | call terminal#setup_vim()
-    endif
+    au TerminalWinOpen * call terminal#setup()
 augroup END
 
 " Why do you install a mapping whose lhs is `Esc Esc`?{{{
@@ -91,18 +85,6 @@ augroup END
 " it only affects the current buffer), and that's why we remove it in an autocmd
 " listening to `FileType fzf`.
 "}}}
-" Do you need to do all of that in Neovim too?{{{
-"
-" No, Neovim doesn't suffer from this issue.
-"
-" So, to  go from Terminal-Job mode  to Terminal-Normal mode, we  could use this
-" mapping:
-"
-"     exe 'tno <buffer> '..(has('nvim') ? '<esc>' : '<esc><esc>')..' <c-\><c-n>'
-"
-" But I  prefer to  stay consistent:  double Escape  in Vim  → double  escape in
-" Neovim.
-"}}}
 " TODO: Find a way to send an Escape key to the foreground program running in the terminal.{{{
 "
 " Maybe something like this:
@@ -113,37 +95,32 @@ augroup END
 " It doesn't work, but you get the idea.
 "}}}
 augroup install_escape_mapping_in_terminal | au!
-    if !has('nvim')
-        " Do *not* install this mapping:  `tno <buffer> <esc>: <c-\><c-n>:`{{{
-        "
-        " Watch:
-        "
-        "     z<      open a terminal
-        "     Esc :   enter command-line
-        "     Esc     get back to terminal normal mode
-        "     z>      close terminal
-        "
-        " The meta keysyms are disabled.
-                " }}}
-        au TerminalWinOpen * tno <buffer><nowait><silent> <esc><esc> <c-\><c-n>:call terminal#fire_termleave()<cr>
-        au TerminalWinOpen * tno <buffer><nowait><silent> <c-\><c-n> <c-\><c-n>:call terminal#fire_termleave()<cr>
-    else
-        au TermOpen * tno <buffer><nowait> <esc><esc> <c-\><c-n>
-    endif
+    " Do *not* install this mapping:  `tno <buffer> <esc>: <c-\><c-n>:`{{{
+    "
+    " Watch:
+    "
+    "     z<      open a terminal
+    "     Esc :   enter command-line
+    "     Esc     get back to terminal normal mode
+    "     z>      close terminal
+    "
+    " The meta keysyms are disabled.
+            " }}}
+    au TerminalWinOpen * tno <buffer><nowait><silent> <esc><esc> <c-\><c-n>:call terminal#fire_termleave()<cr>
+    au TerminalWinOpen * tno <buffer><nowait><silent> <c-\><c-n> <c-\><c-n>:call terminal#fire_termleave()<cr>
     au FileType fzf tunmap <buffer> <esc><esc>
 augroup END
 
-" We sometimes – accidentally – start a nested (N)Vim instance inside a N(Vim) terminal.
+" We sometimes – accidentally – start a nested Vim instance inside a Vim terminal.
 " Let's fix this by re-opening the file(s) in the outer instance.
-if !empty($VIM_TERMINAL) || !empty($NVIM_TERMINAL)
+if !empty($VIM_TERMINAL)
     " Why delay until `VimEnter`?{{{
     "
     " During my limited tests, it didn't  seem necessary, but I'm concerned that
-    " (N)Vim hasn't loaded the file yet when this plugin is sourced.
+    " Vim hasn't loaded the file yet when this plugin is sourced.
     "
     " Also, without the  autocmd, sometimes, a bunch of empty  lines are written
-    " in the  terminal (only  seems to  happen when we've  started a  nested Vim
-    " instance, not a nested Nvim).
+    " in the terminal.
     "}}}
     au VimEnter * call terminal#unnest#main()
 endif
@@ -151,14 +128,13 @@ endif
 " Functions {{{1
 " Interface {{{2
 fu Tapi_drop(_, list_of_files) abort "{{{3
-    " Open a file in the *current* (N)Vim instance, rather than in a nested one.{{{
+    " Open a file in the *current* Vim instance, rather than in a nested one.{{{
     "
-    " The function  can be called manually  via the custom shell  script `vimr`;
-    " it's  also  called  automatically by  `terminal#unnest#main()`  if  (N)Vim
-    " detects that it's running inside an (N)Vim terminal.
+    " The function  is called  automatically by `terminal#unnest#main()`  if Vim
+    " detects that it's running inside a Vim terminal.
     "
-    " Useful  to  avoid the  awkward  user  experience  inside a  nested  (N)Vim
-    " instance (and all the pitfalls which come with it).
+    " Useful to avoid  the awkward user experience inside a  nested Vim instance
+    " (and all the pitfalls which come with it).
     "}}}
     if empty(a:list_of_files)
         return ''
@@ -166,28 +142,20 @@ fu Tapi_drop(_, list_of_files) abort "{{{3
         let files = readfile(a:list_of_files)
         if empty(files) | return '' | endif
     endif
-    call s:stay_in_terminal_job_mode()
     try
         exe 'tabnew | drop '..join(map(files, {_,v -> fnameescape(v)}))
     " E994, E863, ...
     catch
         return lg#catch()
     endtry
-    " to prevent 0 from being printed in Nvim's terminal{{{
-    "
-    " This is because  the function is invoked via  the `--remote-expr` argument
-    " of the `nvr` command.
-    "}}}
-    return ''
 endfu
 
-fu Tapi_exe(_, arglist) abort "{{{3
-    if type(a:arglist) != v:t_string
+fu Tapi_exe(_, cmd) abort "{{{3
+    if type(a:cmd) != v:t_string
         return ''
     endif
-    let cmd = a:arglist
     " run an arbitrary Ex command
-    exe cmd
+    exe a:cmd
     return ''
 endfu
 
@@ -196,7 +164,6 @@ fu Tapi_man(_, page) abort "{{{3
     if exists(':Man') != 2
         echom ':Man needs to be installed' | return ''
     endif
-    call s:stay_in_terminal_job_mode()
     try
         exe 'tab Man '..a:page
     catch
@@ -205,10 +172,3 @@ fu Tapi_man(_, page) abort "{{{3
     return ''
 endfu
 "}}}2
-" Utilities {{{2
-fu s:stay_in_terminal_job_mode() abort "{{{3
-    if has('nvim')
-        au BufEnter <buffer> ++once if mode() is# 'n' | startinsert | endif
-    endif
-endfu
-

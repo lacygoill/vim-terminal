@@ -47,12 +47,6 @@ endif
 
 " Interface {{{1
 fu terminal#toggle_popup#main() abort "{{{2
-    " Why don't you set and inspect an ad-hoc buffer-local variable?{{{
-    "
-    " It would not be reliable.
-    " In Nvim, the popup terminal window is not necessarily the current window.
-    " I think the same is true in Vim, because you can open several popup terminals atm.
-    "}}}
     if has_key(s:popup, 'winid')
         " if the popup terminal is already open on the current tab page, just close it
         if s:is_open_on_current_tabpage()
@@ -75,8 +69,8 @@ fu terminal#toggle_popup#main() abort "{{{2
     let s:popup.winid = term_winid
     " If the buffer gets wiped out by accident, re-init the variable.{{{
     "
-    " Otherwise, when you toggle the popup window  on, you get an error in Nvim,
-    " and a different buffer in Vim (after every toggling).
+    " Otherwise, when you toggle the popup window on, you get a different buffer
+    " (after every toggling).
     "}}}
     au BufWipeout <buffer> ++once let s:popup = {}
     " Necessary if we close the popup with a mapping which doesn't invoke this function.{{{
@@ -109,44 +103,23 @@ fu terminal#toggle_popup#main() abort "{{{2
     " path),  you may  encounter all  sorts  of weird  issues (cursor  position,
     " `popup_close()` failure, ...).
     "}}}
-    " Do *not* use `<buffer>`.{{{
-    "
-    " There is no guarantee that when you toggle off the popup, it will be still
-    " displaying the terminal buffer.
-    "
-    " `*` would  cause issues in Nvim  if you try  to toggle on the  popup after
-    " toggling it  off while it was  displaying a regular buffer  (can happen if
-    " you press `gf` on a file path).
-    "}}}
     au WinLeave * ++once unlet! s:popup.winid
 
     call s:terminal_job_mapping()
-    call s:dynamic_border_color(has('nvim') ? border[1] : term_winid)
+    call s:dynamic_border_color(term_winid)
     call s:preserve_view()
-    if has('nvim') | call s:preserve_lastmode() | endif
     return ''
 endfu
 "}}}1
 " Core {{{1
 fu s:close() abort "{{{2
     let s:popup.view = winsaveview()
-    if !has('nvim')
-        try
-            call popup_close(s:popup.winid)
-        " can happen after you've loaded a regular file in a terminal popup by pressing `gf`
-        catch /^Vim\%((\a\+)\)\=:E994:/
-            return lg#catch()
-        endtry
-    else
-        if s:popup.winid == win_getid()
-            close
-        else
-            let curwinid = win_getid()
-            call win_gotoid(s:popup.winid)
-            close
-            call win_gotoid(curwinid)
-        endif
-    endif
+    try
+        call popup_close(s:popup.winid)
+    " can happen after you've loaded a regular file in a terminal popup by pressing `gf`
+    catch /^Vim\%((\a\+)\)\=:E994:/
+        return lg#catch()
+    endtry
 endfu
 
 fu s:terminal_job_mapping() abort "{{{2
@@ -180,64 +153,49 @@ fu s:terminal_job_mapping() abort "{{{2
     "}}}
     tno <buffer><nowait> <c-g><c-g> <c-g><c-g>
 
-    if has('nvim')
-        exe 'tno <buffer><nowait><silent> '..g:_termpopup_lhs
-            \ ..' <c-\><c-n>:call <sid>nvim_toggle()<cr>'
-    else
-        exe printf('tno <buffer><nowait><silent> %s %s:<c-u>call terminal#toggle_popup#main()<cr>',
-            \ g:_termpopup_lhs, &l:twk == '' ? '<c-w>' : &l:twk)
-    endif
+    exe printf('tno <buffer><nowait><silent> %s %s:<c-u>call terminal#toggle_popup#main()<cr>',
+        \ g:_termpopup_lhs, &l:twk == '' ? '<c-w>' : &l:twk)
 endfu
 
 fu s:dynamic_border_color(winid) abort "{{{2
     augroup dynamic_border_color
-        if has('nvim')
-            au! * <buffer>
-            exe 'au TermEnter <buffer> '
-                \ ..printf('call setwinvar(%d, "&winhighlight", "NormalFloat:%s")',
-                \ a:winid, s:OPTS.job_highlight)
-            exe 'au TermLeave <buffer> '
-                \ ..printf('call setwinvar(%d, "&winhighlight", "NormalFloat:%s")',
-                \ a:winid, s:OPTS.normal_highlight)
-        else
-            let cmd = printf('if win_getid() == %d|call popup_setoptions(%d, %s)|endif',
-                \ a:winid, a:winid, #{borderhighlight: [s:OPTS.job_highlight]})
-            exe 'au! User TermEnter '..cmd
-            " Why inspecting `mode()`?{{{
-            "
-            " Initially, the border is highlighted by `s:OPTS.normal_highlight`.
-            " This command resets the highlighting to `s:OPTS.job_highlight`.
-            " This is correct  the first time we toggle the  popup on, because we're
-            " automatically in Terminal-Job mode.
-            " Afterwards,  this   is  wrong;   we're  no  longer   automatically  in
-            " Terminal-Job mode; we stay in Terminal-Normal mode.
-            "
-            " I *think* that when you display  a *new* terminal buffer, Vim puts you
-            " in Terminal-Job mode automatically.
-            " OTOH, when  you display  an *existing*  terminal buffer,  Vim probably
-            " remembers the last mode you were in.
-            "}}}
-            if mode() is# 't' | exe cmd | endif
-            " Why `:redraw`?{{{
-            "
-            " To make Vim apply the new color on the border.
-            "
-            " ---
-            "
-            " Note that  – at the moment  – we don't need  `:redraw`, but that's
-            " only  thanks to  a side-effect  of an  autocmd in  `vim-readline`,
-            " whose effect can be reproduced with:
-            "
-            "     au CmdlineEnter : call timer_start(0, {-> 0})
-            "
-            " But that's probably brittle, and I don't fully understand what happens.
-            " I guess we have some terminal mappings which trigger `CmdlineEnter`,
-            " which in turn invoke the timer, which in turn causes the redraw.
-            "}}}
-            exe 'au! User TermLeave '
-                \ ..printf('if win_getid() == %d|call popup_setoptions(%d, %s)|redraw|endif',
-                \ a:winid, a:winid, #{borderhighlight: [s:OPTS.normal_highlight]})
-        endif
+        let cmd = printf('if win_getid() == %d|call popup_setoptions(%d, %s)|endif',
+            \ a:winid, a:winid, #{borderhighlight: [s:OPTS.job_highlight]})
+        exe 'au! User TermEnter '..cmd
+        " Why inspecting `mode()`?{{{
+        "
+        " Initially, the border is highlighted by `s:OPTS.normal_highlight`.
+        " This command resets the highlighting to `s:OPTS.job_highlight`.
+        " This is correct  the first time we toggle the  popup on, because we're
+        " automatically in Terminal-Job mode.
+        " Afterwards,  this   is  wrong;   we're  no  longer   automatically  in
+        " Terminal-Job mode; we stay in Terminal-Normal mode.
+        "
+        " I *think* that when you display  a *new* terminal buffer, Vim puts you
+        " in Terminal-Job mode automatically.
+        " OTOH, when  you display  an *existing*  terminal buffer,  Vim probably
+        " remembers the last mode you were in.
+        "}}}
+        if mode() is# 't' | exe cmd | endif
+        " Why `:redraw`?{{{
+        "
+        " To make Vim apply the new color on the border.
+        "
+        " ---
+        "
+        " Note that  – at the moment  – we don't need  `:redraw`, but that's
+        " only  thanks to  a side-effect  of an  autocmd in  `vim-readline`,
+        " whose effect can be reproduced with:
+        "
+        "     au CmdlineEnter : call timer_start(0, {-> 0})
+        "
+        " But that's probably brittle, and I don't fully understand what happens.
+        " I guess we have some terminal mappings which trigger `CmdlineEnter`,
+        " which in turn invoke the timer, which in turn causes the redraw.
+        "}}}
+        exe 'au! User TermLeave '
+            \ ..printf('if win_getid() == %d|call popup_setoptions(%d, %s)|redraw|endif',
+            \ a:winid, a:winid, #{borderhighlight: [s:OPTS.normal_highlight]})
     augroup END
 endfu
 
@@ -245,7 +203,7 @@ fu s:preserve_view() abort "{{{2
     " Make the view persistent when we toggle the window on and off.{{{
     "
     " By  default, Vim  doesn't seem  to restore  the cursor  position, nor  the
-    " topline.  Nvim restores the cursor, but not the topline.
+    " topline.
     "}}}
     " We already have an autocmd restoring the view in `vim-window`.  Why is this necessary?{{{
     "
@@ -254,20 +212,6 @@ fu s:preserve_view() abort "{{{2
     " That's not what is happening here; we re-display a buffer in a *new* window.
     "}}}
     if has_key(s:popup, 'view') | call winrestview(s:popup.view) | endif
-endfu
-
-fu s:preserve_lastmode() abort "{{{2
-    " if the  last time we  toggled the popup  off, we were  in Terminal-Job
-    " mode, we want to get back in Terminal-Job mode now
-    if get(s:popup, 'lastmode', 'n') is# 't'
-        call feedkeys('i', 'in')
-    endif
-    let s:popup.lastmode = 'n'
-endfu
-
-fu s:nvim_toggle() abort "{{{2
-    let s:popup.lastmode = 't'
-    call terminal#toggle_popup#main()
 endfu
 "}}}1
 " Util {{{1
@@ -283,9 +227,9 @@ fu s:get_opts() abort "{{{2
     " and execute  `:LogEvents`, then toggle  the popup terminal window  on, you
     " should see that the border is wrong.
     "}}}
-    let [row, col, width, height] = s:get_geometry()
+    let [line, col, width, height] = s:get_geometry()
     let opts = {
-        \ 'row': row,
+        \ 'line': line,
         \ 'col': col,
         \ 'width': width,
         \ 'height': height,
@@ -300,27 +244,23 @@ fu s:get_geometry() abort "{{{2
 
     " Why `&lines - height`?  Why not just `&lines`{{{
     "
-    " If your `yoffset`  is 1, and you  just write `&lines`, then  `row` will be
+    " If your `yoffset` is  1, and you just write `&lines`,  then `line` will be
     " set to `&lines`, which  is wrong; the top of the popup  window can't be on
     " the last line of the screen; the lowest it can be is `&lines - height`.
     "}}}
-    let row = float2nr(s:OPTS.yoffset * (&lines - height))
+    let line = float2nr(s:OPTS.yoffset * (&lines - height))
     let col = float2nr(s:OPTS.xoffset * (&columns - width))
 
-    return [row, col, width, height]
+    return [line, col, width, height]
 endfu
 
 fu s:is_open_on_current_tabpage() abort "{{{2
-    if !has('nvim')
-        " If the popup is in the current tab page, the key 'tabpage' will have the value 0.{{{
-        "
-        " If it's  global (i.e. displayed on  all tab pages), the  key will have
-        " the value  -1.  And if  it's only displayed  on another tab  page, its
-        " value will be the index of that tab page.
-        "}}}
-        return get(popup_getoptions(s:popup.winid), 'tabpage', -1) == 0
-    else
-        return get(get(getwininfo(s:popup.winid), 0), 'tabnr') == tabpagenr()
-    endif
+    " If the popup is in the current tab page, the key 'tabpage' will have the value 0.{{{
+    "
+    " If it's  global (i.e. displayed on  all tab pages), the  key will have
+    " the value  -1.  And if  it's only displayed  on another tab  page, its
+    " value will be the index of that tab page.
+    "}}}
+    return get(popup_getoptions(s:popup.winid), 'tabpage', -1) == 0
 endfu
 

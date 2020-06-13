@@ -1,6 +1,20 @@
 " Interface {{{1
 fu terminal#setup() abort "{{{2
-    " in this function, put settings which should be applied both in Vim and Nvim
+    " TODO: Once Vim supports `ModeChanged`, get rid of `s:fire_termenter()`.{{{
+    "
+    " Instead, refactor your autocmds to listen to `ModeChanged`.
+    "
+    " See: https://github.com/vim/vim/issues/2487#issuecomment-353735824
+    " And `:h todo /modechanged`.
+    "}}}
+    nno <buffer><nowait><silent> i :<c-u>call <sid>fire_termenter('i')<cr>
+    nno <buffer><nowait><silent> a :<c-u>call <sid>fire_termenter('a')<cr>
+
+    nno <buffer><nowait><silent> I :<c-u>call <sid>fire_termenter('I<c-v><c-a>')<cr>
+    nno <buffer><nowait><silent> A :<c-u>call <sid>fire_termenter('A<c-v><c-e>')<cr>
+
+    nno <buffer><nowait><silent> C  :<c-u>call <sid>fire_termenter('i<c-v><c-k>')<cr>
+    nno <buffer><nowait><silent> cc :<c-u>call <sid>fire_termenter('i<c-v><c-e><c-v><c-u>')<cr>
 
     " Let us paste a register like we would in a regular buffer (e.g. `"ap`).{{{
     "
@@ -20,10 +34,9 @@ fu terminal#setup() abort "{{{2
     "    │ x   │ name of the register to paste             │
     "    └─────┴───────────────────────────────────────────┘
     "
-    " And  paste bracket  control codes  are not  inserted around  the register,
-    " neither in  Vim nor in Nvim.   As a result, (N)Vim  automatically executes
-    " any text  whenever it encounters a  newline.  We don't want  that; we just
-    " want to insert some text.
+    " And  paste bracket  control codes  are not  inserted around  the register.
+    " As a result, Vim automatically executes  any text whenever it encounters a
+    " newline.  We don't want that; we just want to insert some text.
     "}}}
     nno <buffer><expr><nowait> p <sid>p()
 
@@ -43,19 +56,13 @@ fu terminal#setup() abort "{{{2
         \ 'from': expand('<sfile>:p')..':'..expand('<slnum>'),
         \ 'motions': [{'bwd': '[c',  'fwd': ']c'}]})
 
-    " Rationale:{{{
-    "
-    " Setting `'siso'` to a non-zero value is useless in a terminal buffer; long
-    " lines are automatically hard-wrapped.
-    " Besides, it makes the window's view "dance" when pressing `l` and reaching
-    " the end of a long line, which is jarring.
-    "
-    " ---
-    "
-    " We  reset  `'so'` because  it  makes  moving  in  a terminal  buffer  more
-    " consistent with tmux copy-mode.
-    "}}}
-    setl so=0 siso=0
+    " If `'termwinkey'` is not set, Vim falls back on `C-w`.  See `:h 'twk`.
+    let twk = &l:twk == '' ? '<c-w>' : &l:twk
+    " don't execute an inserted register when it contains a newline
+    exe 'tno <buffer><expr><nowait> '..twk..'" <sid>insert_register()'
+    " we don't want a timeout when we press the termwinkey + `C-w` to focus the next window:
+    " https://vi.stackexchange.com/a/24983/17449
+    exe printf('tno <buffer><nowait> %s<c-w> %s<c-w>', twk , twk)
 
     " `ZF` and `mq` don't work on relative paths.{{{
     "
@@ -80,47 +87,21 @@ fu terminal#setup() abort "{{{2
     "}}}
     let &l:inex = s:snr..'inex()'
     xno <buffer><nowait><silent> mq :<c-u>call <sid>mq()<cr>
-endfu
 
-fu terminal#setup_neovim() abort "{{{2
-    nno <buffer><nowait><silent> I  I<c-a>
-    nno <buffer><nowait><silent> A  A<c-e>
-    nno <buffer><nowait><silent> C  i<c-k>
-    nno <buffer><nowait><silent> cc i<c-e><c-u>
-endfu
-
-fu terminal#setup_vim() abort "{{{2
-    if win_gettype() is# 'popup'
-        call s:set_popup()
-    endif
-
-    " Neovim automatically disables `'wrap'` in a terminal buffer.
-    " Not Vim. We do it in this function.
-    setl nowrap
-
-    " If `'termwinkey'` is not set, Vim falls back on `C-w`.  See `:h 'twk`.
-    let twk = &l:twk == '' ? '<c-w>' : &l:twk
-    " don't execute an inserted register when it contains a newline
-    exe 'tno <buffer><expr><nowait> '..twk..'" <sid>insert_register()'
-    " we don't want a timeout when we press the termwinkey + `C-w` to focus the next window:
-    " https://vi.stackexchange.com/a/24983/17449
-    exe printf('tno <buffer><nowait> %s<c-w> %s<c-w>', twk , twk)
-
-    " TODO: Once Vim supports `ModeChanged`, get rid of `s:fire_termenter()`.{{{
+    " Rationale:{{{
     "
-    " Instead, refactor your autocmds to listen to `ModeChanged`.
+    " Setting `'siso'` to a non-zero value is useless in a terminal buffer; long
+    " lines are automatically hard-wrapped.
+    " Besides, it makes the window's view "dance" when pressing `l` and reaching
+    " the end of a long line, which is jarring.
     "
-    " See: https://github.com/vim/vim/issues/2487#issuecomment-353735824
-    " And `:h todo /modechanged`.
+    " ---
+    "
+    " We  reset  `'so'` because  it  makes  moving  in  a terminal  buffer  more
+    " consistent with tmux copy-mode.
     "}}}
-    nno <buffer><nowait><silent> i :<c-u>call <sid>fire_termenter('i')<cr>
-    nno <buffer><nowait><silent> a :<c-u>call <sid>fire_termenter('a')<cr>
-
-    nno <buffer><nowait><silent> I :<c-u>call <sid>fire_termenter('I<c-v><c-a>')<cr>
-    nno <buffer><nowait><silent> A :<c-u>call <sid>fire_termenter('A<c-v><c-e>')<cr>
-
-    nno <buffer><nowait><silent> C  :<c-u>call <sid>fire_termenter('i<c-v><c-k>')<cr>
-    nno <buffer><nowait><silent> cc :<c-u>call <sid>fire_termenter('i<c-v><c-e><c-v><c-u>')<cr>
+    setl so=0 siso=0
+    setl nowrap
 
     augroup term_preserve_cwd
         au! * <buffer>
@@ -140,13 +121,14 @@ fu terminal#setup_vim() abort "{{{2
         "     " move onto the 'hosts' file
         "     " press:  gf
         "     E447: Can't find file "/etc /hosts" in path~
-        "
-        " For some  reason, this is not  an issue in  Nvim, so we don't  need to
-        " install the autocmds there too.
         "}}}
         au BufWinLeave <buffer> let b:_cwd = getcwd()
         au BufWinEnter <buffer> if exists('b:_cwd') | exe 'lcd '..b:_cwd | endif
     augroup END
+
+    if win_gettype() is# 'popup'
+        call s:set_popup()
+    endif
 endfu
 
 fu s:fire_termenter(rhs) abort "{{{2
@@ -193,12 +175,6 @@ fu s:fire_termenter(rhs) abort "{{{2
         "         nunmap <buffer> D
         "         ...
         "     endif
-        "
-        " ---
-        "
-        " Warning: I don't think you can edit a terminal buffer in Nvim once its
-        " job has finished.  IOW, allowing that in Vim will be inconsistent with
-        " Nvim.
         "}}}
         return lg#catch()
     endtry
@@ -286,12 +262,8 @@ endfu
 fu s:p() abort "{{{2
     let reg = v:register
     call s:use_bracketed_paste(reg)
-    if !has('nvim')
-        let twk = &l:twk == '' ? "\<c-w>" : eval('"\'..&l:twk..'"')
-        return "i\<c-e>"..twk..'"'..reg
-    else
-        return '"'..reg..'pi'
-    endif
+    let twk = &l:twk == '' ? "\<c-w>" : eval('"\'..&l:twk..'"')
+    return "i\<c-e>"..twk..'"'..reg
 endfu
 
 fu s:set_popup() abort "{{{2
@@ -316,7 +288,7 @@ let s:snr = get(s:, 'snr', s:snr())
 
 fu s:getcwd() abort "{{{2
     let cwd = getline(search('^٪', 'bnW')-1)
-    let cwd = substitute(cwd, '\s*\[\d\+\]\s*$', '', '')
+    let cwd = substitute(cwd, '\s*\%(\[\d\+\]\)\=\s*$', '', '')
     " Warning: in the future, we may define other named directories in our zshrc.
     " Warning: `1000` may be the wrong UID.  We should inspect `$UID` but it's not in the environment.
     let cwd = substitute(cwd, '^\~tmp', '/run/user/1000/tmp', '')
@@ -328,11 +300,7 @@ fu s:use_bracketed_paste(reg) abort "{{{2
     " don't execute anything, even if the register contains newlines
     let regval = getreg(a:reg)
     if regval =~# "\n"
-        if has('nvim')
-            let [before, after] = ["\e[200~", "\e[201~"]
-        else
-            let [before, after] = [&t_PS, &t_PE]
-        endif
+        let [before, after] = [&t_PS, &t_PE]
         let new = before..regval..after
         " Don't use the `'l'` type.  It would cause the automatic execution of the pasted command.
         call setreg(a:reg, new, 'c')
