@@ -72,7 +72,7 @@ fu terminal#setup() abort "{{{2
     "     rg() {
     "       emulate -L zsh
     "       command rg -LS --vimgrep --color=auto $* $(pwd)
-    "       #                                        ^^^^^^
+    "       #                                        ^----^
     "       #                        To get absolute paths.
     "       # See: https://github.com/BurntSushi/ripgrep/issues/958#issuecomment-404471289
     "     }
@@ -298,13 +298,16 @@ endfu
 
 fu s:use_bracketed_paste(reg) abort "{{{2
     " don't execute anything, even if the register contains newlines
-    let regval = getreg(a:reg)
-    if regval =~# "\n"
+    let reginfo = getreginfo(a:reg)
+    let save = deepcopy(reginfo)
+    if get(reginfo, 'regcontents', [])->len() > 1
         let [before, after] = [&t_PS, &t_PE]
-        let new = before..regval..after
-        " Don't use the `'l'` type.  It would cause the automatic execution of the pasted command.
-        call setreg(a:reg, new, 'c')
-        call timer_start(0, {-> setreg(a:reg, regval, getregtype(a:reg))})
+        let reginfo.regcontents[0] = before..reginfo.regcontents[0]
+        let reginfo.regcontents[-1] ..= after
+        " Don't use the `'l'` or `'V'` type.  It would cause the automatic execution of the pasted command.
+        let reginfo.regtype = 'c'
+        call setreg(a:reg, reginfo)
+        call timer_start(0, {-> setreg(a:reg, save)})
     endif
 endfu
 
