@@ -50,7 +50,7 @@ fu s:open_manpage() abort "{{{2
     "
     " The man page must be surrounded by double quotes, not single quotes.
     "}}}
-    call writefile([printf('%s]51;["call", "Tapi_man", %s]%s', "\033", json_encode(page), "\007")], '/dev/tty', 'b')
+    call printf('%s]51;["call", "Tapi_man", %s]%s', "\033", json_encode(page), "\007")->echoraw()
     qa!
 endfu
 
@@ -109,7 +109,7 @@ fu s:open_files(filelist) abort "{{{2
     "}}}
     %bd!
     " open files in the outer Vim instance using `:h terminal-api`
-    call writefile([printf('%s]51;["call", "Tapi_drop", "%s"]%s', "\033", a:filelist, "\007")], '/dev/tty', 'b')
+    call printf('%s]51;["call", "Tapi_drop", "%s"]%s', "\033", a:filelist, "\007")->echoraw()
 endfu
 
 fu s:fire_stdinreadpost() abort "{{{2
@@ -118,7 +118,7 @@ fu s:fire_stdinreadpost() abort "{{{2
     "     $ vim +term
     "     $ trans word 2>&1 | vipe >/dev/null
     "}}}
-    call writefile([printf('%s]51;["call", "Tapi_exe", "do <nomodeline> StdinReadPost"]%s', "\033", "\007")], '/dev/tty', 'b')
+    call printf('%s]51;["call", "Tapi_exe", "do <nomodeline> StdinReadPost"]%s', "\033", "\007")->echoraw()
 endfu
 "}}}1
 " Utilities {{{1
