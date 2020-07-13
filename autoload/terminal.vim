@@ -85,7 +85,7 @@ fu terminal#setup() abort "{{{2
     " it can help with any shell command, not just `rg(1)`.
     " E.g., you can press `ZF` on a file output by `$ ls`.
     "}}}
-    let &l:inex = s:snr..'inex()'
+    let &l:inex = function('s:inex')->string() .. '()'
     xno <buffer><nowait><silent> mq :<c-u>call <sid>mq()<cr>
 
     " Rationale:{{{
@@ -281,11 +281,6 @@ fu s:set_popup() abort "{{{2
 endfu
 "}}}1
 " Utilities {{{1
-fu s:snr() abort "{{{2
-    return matchstr(expand('<sfile>'), '.*\zs<SNR>\d\+_')
-endfu
-let s:snr = get(s:, 'snr', s:snr())
-
 fu s:getcwd() abort "{{{2
     let cwd = getline(search('^٪', 'bnW')-1)
     let cwd = substitute(cwd, '\s*\%(\[\d\+\]\)\=\s*$', '', '')
