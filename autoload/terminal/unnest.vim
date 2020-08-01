@@ -15,9 +15,9 @@ fu terminal#unnest#main() abort "{{{2
     " this  guard,  `:cquit` would  be  run  in the  outer  Vim  making it  quit
     " entirely.
     "
-    " As a bonus, this  guard allows us to start a nested  Vim instance, for the
-    " rare case  where we would  want to study some  bug or Vim's  behavior when
-    " it's nested.
+    " As a bonus, this  guard lets us start a nested Vim  instance, for the rare
+    " case where  we would want  to study some bug  or Vim's behavior  when it's
+    " nested.
     "}}}
     if s:nothing_to_read() | return | endif
 
