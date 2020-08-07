@@ -15,8 +15,10 @@ let g:loaded_terminal = 1
 " Its effect  is local  to a given  buffer, so if  you want  to apply it  to all
 " terminal buffers, you'll need an autocmd.
 "
-"     au TerminalWinOpen * call term_setapi(str2nr(expand('<abuf>')), 'Myapi_')
+"     au TerminalWinOpen * call expand('<abuf>')->str2nr()->term_setapi('Myapi_')
 "}}}1
+
+import Catch from 'lg.vim'
 
 " Mappings {{{1
 
@@ -35,7 +37,7 @@ let g:loaded_terminal = 1
 " Have a look at `s:mapping()` in `autoload/terminal/toggle_popup.vim`.
 "}}}
 let g:_termpopup_lhs = '<c-g><c-j>'
-exe 'nno <silent> '..g:_termpopup_lhs..' :<c-u>call terminal#toggle_popup#main()<cr>'
+exe 'nno <silent> ' .. g:_termpopup_lhs .. ' :<c-u>call terminal#toggle_popup#main()<cr>'
 
 " Options {{{1
 
@@ -143,10 +145,10 @@ fu Tapi_drop(_, list_of_files) abort "{{{3
         if empty(files) | return '' | endif
     endif
     try
-        exe 'tabnew | drop '..join(map(files, {_,v -> fnameescape(v)}))
+        exe 'tabnew | drop ' .. map(files, {_, v -> fnameescape(v)})->join()
     " E994, E863, ...
     catch
-        return lg#catch()
+        return s:Catch()
     endtry
 endfu
 
@@ -165,9 +167,9 @@ fu Tapi_man(_, page) abort "{{{3
         echom ':Man needs to be installed' | return ''
     endif
     try
-        exe 'tab Man '..a:page
+        exe 'tab Man ' .. a:page
     catch
-        return lg#catch()
+        return s:Catch()
     endtry
     return ''
 endfu

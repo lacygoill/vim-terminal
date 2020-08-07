@@ -1,3 +1,5 @@
+import Catch from 'lg.vim'
+
 " Interface {{{1
 fu terminal#setup() abort "{{{2
     " TODO: Once Vim supports `ModeChanged`, get rid of `s:fire_termenter()`.{{{
@@ -13,7 +15,7 @@ fu terminal#setup() abort "{{{2
     nno <buffer><nowait><silent> I :<c-u>call <sid>fire_termenter('I<c-v><c-a>')<cr>
     nno <buffer><nowait><silent> A :<c-u>call <sid>fire_termenter('A<c-v><c-e>')<cr>
 
-    nno <buffer><nowait><silent> C  :<c-u>call <sid>fire_termenter('i<c-v><c-k>')<cr>
+    nno <buffer><nowait><silent> C :<c-u>call <sid>fire_termenter('i<c-v><c-k>')<cr>
     nno <buffer><nowait><silent> cc :<c-u>call <sid>fire_termenter('i<c-v><c-e><c-v><c-u>')<cr>
 
     " Let us paste a register like we would in a regular buffer (e.g. `"ap`).{{{
@@ -53,13 +55,13 @@ fu terminal#setup() abort "{{{2
     sil! call repmap#make#repeatable({
         \ 'mode': '',
         \ 'buffer': 1,
-        \ 'from': expand('<sfile>:p')..':'..expand('<slnum>'),
-        \ 'motions': [{'bwd': '[c',  'fwd': ']c'}]})
+        \ 'from': expand('<sfile>:p') .. ':' .. expand('<slnum>'),
+        \ 'motions': [{'bwd': '[c', 'fwd': ']c'}]})
 
     " If `'termwinkey'` is not set, Vim falls back on `C-w`.  See `:h 'twk`.
     let twk = &l:twk == '' ? '<c-w>' : &l:twk
     " don't execute an inserted register when it contains a newline
-    exe 'tno <buffer><expr><nowait> '..twk..'" <sid>insert_register()'
+    exe 'tno <buffer><expr><nowait> ' .. twk .. '" <sid>insert_register()'
     " we don't want a timeout when we press the termwinkey + `C-w` to focus the next window:
     " https://vi.stackexchange.com/a/24983/17449
     exe printf('tno <buffer><nowait> %s<c-w> %s<c-w>', twk , twk)
@@ -85,7 +87,7 @@ fu terminal#setup() abort "{{{2
     " it can help with any shell command, not just `rg(1)`.
     " E.g., you can press `ZF` on a file output by `$ ls`.
     "}}}
-    let &l:inex = function('s:inex')->string() .. '()'
+    let &l:inex = expand('<SID>') .. 'inex()'
     xno <buffer><nowait><silent> mq :<c-u>call <sid>mq()<cr>
 
     " Rationale:{{{
@@ -123,7 +125,7 @@ fu terminal#setup() abort "{{{2
         "     E447: Can't find file "/etc /hosts" in path~
         "}}}
         au BufWinLeave <buffer> let b:_cwd = getcwd()
-        au BufWinEnter <buffer> if exists('b:_cwd') | exe 'lcd '..b:_cwd | endif
+        au BufWinEnter <buffer> if exists('b:_cwd') | exe 'lcd ' .. b:_cwd | endif
     augroup END
 
     if win_gettype() is# 'popup'
@@ -133,7 +135,7 @@ endfu
 
 fu s:fire_termenter(rhs) abort "{{{2
     try
-        exe 'norm! '..a:rhs[0]
+        exe 'norm! ' .. a:rhs[0]
     " Why?{{{
     "
     " When the job  associated to a terminal has finished,  pressing `i` doesn't
@@ -176,7 +178,7 @@ fu s:fire_termenter(rhs) abort "{{{2
         "         ...
         "     endif
         "}}}
-        return lg#catch()
+        return s:Catch()
     endtry
     " Why does `TermEnter` need to be fired?{{{
     "
@@ -221,49 +223,49 @@ fu s:inex() abort "{{{2
     let cwd = s:getcwd()
     " most of the code is leveraged from a similar function in our vimrc
     let line = getline('.')
-    let pat = '\m\C${\f\+}'..'\V'..v:fname..'\m\|${\V'..v:fname..'}\f\+\|\%'..col('.')..'c${\f\+}\f\+'
-    let cursor_after = '\m\%(.*\%'..col('.')..'c\)\@='
-    let cursor_before = '\m\%(\%'..col('.')..'c.*\)\@<='
-    let pat = cursor_after..pat..cursor_before
+    let pat = '\m\C${\f\+}' .. '\V' .. v:fname .. '\m\|${\V' .. v:fname .. '}\f\+\|\%' .. col('.') .. 'c${\f\+}\f\+'
+    let cursor_after = '\m\%(.*\%' .. col('.') .. 'c\)\@='
+    let cursor_before = '\m\%(\%' .. col('.') .. 'c.*\)\@<='
+    let pat = cursor_after .. pat .. cursor_before
     if line =~# pat
         let pat = matchstr(line, pat)
         let env = matchstr(pat, '\w\+')
-        return substitute(pat, '${'..env..'}', eval('$'..env), '')
-    elseif line =~# cursor_after..'='..cursor_before
+        return substitute(pat, '${' .. env .. '}', eval('$' .. env), '')
+    elseif line =~# cursor_after .. '=' .. cursor_before
         return substitute(v:fname, '.*=', '', '')
     elseif line =~# '^\./'
         return substitute(v:fname, '^\./', cwd, '')
     else
-        return cwd..v:fname
+        return cwd .. v:fname
     endif
 endfu
 
 fu s:insert_register() abort "{{{2
     let numeric = range(10)
-    let alpha = map(range(char2nr('a'), char2nr('z')), 'nr2char(v:val)')
+    let alpha = range(char2nr('a'), char2nr('z'))->map('nr2char(v:val)')
     let other = ['-', '*', '+', '/', '=']
-    let reg = nr2char(getchar())
+    let reg = getchar()->nr2char()
     if index(numeric + alpha + other, reg) == -1
         return ''
     endif
     call s:use_bracketed_paste(reg)
-    let twk = &l:twk == '' ? "\<c-w>" : eval('"\'..&l:twk..'"')
-    return twk..'"'..reg
+    let twk = &l:twk == '' ? "\<c-w>" : eval('"\' .. &l:twk .. '"')
+    return twk .. '"' .. reg
 endfu
 
 fu s:mq() abort "{{{2
     let cwd = s:getcwd()
     let [lnum1, lnum2] = [line("'<"), line("'>")]
-    let lines = map(getline(lnum1, lnum2), {_,v -> cwd..v})
-    call setqflist([], ' ', {'lines': lines, 'title': ':'..lnum1..','..lnum2..'cgetbuffer'})
+    let lines = getline(lnum1, lnum2)->map({_, v -> cwd .. v})
+    call setqflist([], ' ', {'lines': lines, 'title': ':' .. lnum1 .. ',' .. lnum2 .. 'cgetbuffer'})
     cw
 endfu
 
 fu s:p() abort "{{{2
     let reg = v:register
     call s:use_bracketed_paste(reg)
-    let twk = &l:twk == '' ? "\<c-w>" : eval('"\'..&l:twk..'"')
-    return "i\<c-e>"..twk..'"'..reg
+    let twk = &l:twk == '' ? "\<c-w>" : eval('"\' .. &l:twk .. '"')
+    return "i\<c-e>" .. twk .. '"' .. reg
 endfu
 
 fu s:set_popup() abort "{{{2
@@ -282,13 +284,13 @@ endfu
 "}}}1
 " Utilities {{{1
 fu s:getcwd() abort "{{{2
-    let cwd = getline(search('^٪', 'bnW')-1)
+    let cwd = (search('^٪', 'bnW') - 1)->getline()
     let cwd = substitute(cwd, '\s*\%(\[\d\+\]\)\=\s*$', '', '')
     " Warning: in the future, we may define other named directories in our zshrc.
     " Warning: `1000` may be the wrong UID.  We should inspect `$UID` but it's not in the environment.
     let cwd = substitute(cwd, '^\~tmp', '/run/user/1000/tmp', '')
-    let cwd = substitute(cwd, '^\~xdcc', $HOME..'/Dowloads/XDCC', '')
-    return cwd..'/'
+    let cwd = substitute(cwd, '^\~xdcc', $HOME .. '/Dowloads/XDCC', '')
+    return cwd .. '/'
 endfu
 
 fu s:use_bracketed_paste(reg) abort "{{{2
@@ -297,7 +299,7 @@ fu s:use_bracketed_paste(reg) abort "{{{2
     let save = deepcopy(reginfo)
     if get(reginfo, 'regcontents', [])->len() > 1
         let [before, after] = [&t_PS, &t_PE]
-        let reginfo.regcontents[0] = before..reginfo.regcontents[0]
+        let reginfo.regcontents[0] = before .. reginfo.regcontents[0]
         let reginfo.regcontents[-1] ..= after
         " Don't use the `'l'` or `'V'` type.  It would cause the automatic execution of the pasted command.
         let reginfo.regtype = 'c'

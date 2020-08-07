@@ -9,6 +9,8 @@ let g:autoloaded_terminal#toggle_popup = 1
 
 " Init {{{1
 
+import Catch from 'lg.vim'
+
 const s:OPTS = {
     "\ percentage of the total width
     \ 'width': 0.9,
@@ -118,7 +120,7 @@ fu s:close() abort "{{{2
         call popup_close(s:popup.winid)
     " can happen after you've loaded a regular file in a terminal popup by pressing `gf`
     catch /^Vim\%((\a\+)\)\=:E994:/
-        return lg#catch()
+        return s:Catch()
     endtry
 endfu
 
@@ -161,7 +163,7 @@ fu s:dynamic_border_color(winid) abort "{{{2
     augroup dynamic_border_color
         let cmd = printf('if win_getid() == %d|call popup_setoptions(%d, %s)|endif',
             \ a:winid, a:winid, #{borderhighlight: [s:OPTS.job_highlight]})
-        exe 'au! User TermEnter '..cmd
+        exe 'au! User TermEnter ' .. cmd
         " Why inspecting `mode()`?{{{
         "
         " Initially, the border is highlighted by `s:OPTS.normal_highlight`.
@@ -194,7 +196,7 @@ fu s:dynamic_border_color(winid) abort "{{{2
         " which in turn invoke the timer, which in turn causes the redraw.
         "}}}
         exe 'au! User TermLeave '
-            \ ..printf('if win_getid() == %d|call popup_setoptions(%d, %s)|redraw|endif',
+            \ .. printf('if win_getid() == %d|call popup_setoptions(%d, %s)|redraw|endif',
             \ a:winid, a:winid, #{borderhighlight: [s:OPTS.normal_highlight]})
     augroup END
 endfu
@@ -261,6 +263,6 @@ fu s:is_open_on_current_tabpage() abort "{{{2
     " the value  -1.  And if  it's only displayed  on another tab  page, its
     " value will be the index of that tab page.
     "}}}
-    return get(popup_getoptions(s:popup.winid), 'tabpage', -1) == 0
+    return popup_getoptions(s:popup.winid)->get('tabpage', -1) == 0
 endfu
 
