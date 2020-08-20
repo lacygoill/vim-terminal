@@ -10,6 +10,7 @@ let g:autoloaded_terminal#toggle_popup = 1
 " Init {{{1
 
 import Catch from 'lg.vim'
+import Popup_create from 'lg/popup.vim'
 
 const s:OPTS = {
     "\ percentage of the total width
@@ -61,9 +62,9 @@ fu terminal#toggle_popup#main() abort "{{{2
 
     let [bufnr, opts] = [get(s:popup, 'bufnr', -1), s:get_opts()]
     try
-        let [term_bufnr, term_winid; border] = lg#popup#create(bufnr, opts)
+        let [term_bufnr, term_winid; border] = s:Popup_create(bufnr, opts)
     catch /^Vim\%((\a\+)\)\=:E117:/
-        echohl ErrorMsg | echom 'need lg#popup#create(); install vim-lg-lib' | echohl NONE
+        echohl ErrorMsg | echom 'need s:Popup_create(); install vim-lg-lib' | echohl NONE
         return
     endtry
 
@@ -149,7 +150,7 @@ fu s:terminal_job_mapping() abort "{{{2
     " But the  second `C-g`  suffers from the  same issue as  did the  first one
     " previously; Vim must wait until the timeout.
     "
-    " Issue: How to avoid this timeout?
+    " Problem: How to avoid this timeout?
     " Solution: Install a  mapping which remaps  `C-g C-g` into itself,  so that
     " when you press `C-g C-g`, it gets remapped and executed immediately.
     "}}}

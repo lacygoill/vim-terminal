@@ -2,21 +2,21 @@ import Catch from 'lg.vim'
 
 " Interface {{{1
 fu terminal#setup() abort "{{{2
-    " TODO: Once Vim supports `ModeChanged`, get rid of `s:fire_termenter()`.{{{
+    " TODO: Once Vim supports `ModeChanged`, get rid of `s:wrap()`.{{{
     "
     " Instead, refactor your autocmds to listen to `ModeChanged`.
     "
     " See: https://github.com/vim/vim/issues/2487#issuecomment-353735824
     " And `:h todo /modechanged`.
     "}}}
-    nno <buffer><nowait><silent> i :<c-u>call <sid>fire_termenter('i')<cr>
-    nno <buffer><nowait><silent> a :<c-u>call <sid>fire_termenter('a')<cr>
+    nno <buffer><nowait><silent> i :<c-u>call <sid>wrap('i')<cr>
+    nno <buffer><nowait><silent> a :<c-u>call <sid>wrap('a')<cr>
 
-    nno <buffer><nowait><silent> I :<c-u>call <sid>fire_termenter('I<c-v><c-a>')<cr>
-    nno <buffer><nowait><silent> A :<c-u>call <sid>fire_termenter('A<c-v><c-e>')<cr>
+    nno <buffer><nowait><silent> I :<c-u>call <sid>wrap('I<c-v><c-a>')<cr>
+    nno <buffer><nowait><silent> A :<c-u>call <sid>wrap('A<c-v><c-e>')<cr>
 
-    nno <buffer><nowait><silent> C :<c-u>call <sid>fire_termenter('i<c-v><c-k>')<cr>
-    nno <buffer><nowait><silent> cc :<c-u>call <sid>fire_termenter('i<c-v><c-e><c-v><c-u>')<cr>
+    nno <buffer><nowait><silent> C :<c-u>call <sid>wrap('i<c-v><c-k>')<cr>
+    nno <buffer><nowait><silent> cc :<c-u>call <sid>wrap('i<c-v><c-e><c-v><c-u>')<cr>
 
     " Let us paste a register like we would in a regular buffer (e.g. `"ap`).{{{
     "
@@ -133,7 +133,7 @@ fu terminal#setup() abort "{{{2
     endif
 endfu
 
-fu s:fire_termenter(rhs) abort "{{{2
+fu s:wrap(rhs) abort "{{{2
     try
         exe 'norm! ' .. a:rhs[0]
     " Why?{{{
@@ -207,7 +207,7 @@ fu s:fire_termenter(rhs) abort "{{{2
     " Terminal-Normal mode; so  our autocmds could be executed  too often (which
     " may have an impact even with a guard such as `if mode() is# 't'`).
     "}}}
-    if exists('#User#TermEnter') | do <nomodeline> User TermEnter | endif
+    call s:fire_termenter()
     if strlen(a:rhs) == 1 | return | endif
     call term_sendkeys('', a:rhs[1:])
 endfu
@@ -265,6 +265,7 @@ fu s:p() abort "{{{2
     let reg = v:register
     call s:use_bracketed_paste(reg)
     let twk = &l:twk == '' ? "\<c-w>" : eval('"\' .. &l:twk .. '"')
+    call s:fire_termenter()
     return "i\<c-e>" .. twk .. '"' .. reg
 endfu
 
@@ -273,7 +274,7 @@ fu s:set_popup() abort "{{{2
     " reset to its default value (empty string), which makes Vim use `C-w`.
     " Set the option  again, so that we  get the same experience  as in terminal
     " buffers in non-popup windows.
-    setl twk<
+    set twk<
 
     " suppress error: Vim(wincmd):E994: Not allowed in a popup window
     nno <buffer><nowait> <c-h> <nop>
@@ -283,6 +284,10 @@ fu s:set_popup() abort "{{{2
 endfu
 "}}}1
 " Utilities {{{1
+fu s:fire_termenter() abort "{{{2
+    if exists('#User#TermEnter') | do <nomodeline> User TermEnter | endif
+endfu
+
 fu s:getcwd() abort "{{{2
     let cwd = (search('^٪', 'bnW') - 1)->getline()
     let cwd = substitute(cwd, '\s*\%(\[\d\+\]\)\=\s*$', '', '')
