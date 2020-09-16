@@ -1,5 +1,7 @@
 import Catch from 'lg.vim'
 
+const s:SFILE = expand('<sfile>:p')
+
 " Interface {{{1
 fu terminal#setup() abort "{{{2
     " TODO: Once Vim supports `ModeChanged`, get rid of `s:wrap()`.{{{
@@ -55,7 +57,7 @@ fu terminal#setup() abort "{{{2
     sil! call repmap#make#repeatable({
         \ 'mode': '',
         \ 'buffer': 1,
-        \ 'from': expand('<sfile>:p') .. ':' .. expand('<slnum>'),
+        \ 'from': s:SFILE .. ':' .. expand('<sflnum>'),
         \ 'motions': [{'bwd': '[c', 'fwd': ']c'}]})
 
     " If `'termwinkey'` is not set, Vim falls back on `C-w`.  See `:h 'twk`.
