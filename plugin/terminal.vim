@@ -145,7 +145,10 @@ fu Tapi_drop(_, list_of_files) abort "{{{3
         if empty(files) | return '' | endif
     endif
     try
-        exe 'tabnew | drop ' .. map(files, {_, v -> fnameescape(v)})->join()
+        if win_gettype() is# 'popup'
+            call win_getid()->popup_close()
+        endif
+        exe 'drop ' .. map(files, {_, v -> fnameescape(v)})->join()
     " E994, E863, ...
     catch
         return s:Catch()
