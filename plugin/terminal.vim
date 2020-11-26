@@ -37,7 +37,7 @@ import Catch from 'lg.vim'
 " Have a look at `s:mapping()` in `autoload/terminal/toggle_popup.vim`.
 "}}}
 let g:_termpopup_lhs = '<c-g><c-j>'
-exe 'nno <silent> ' .. g:_termpopup_lhs .. ' :<c-u>call terminal#toggle_popup#main()<cr>'
+exe 'nno ' .. g:_termpopup_lhs .. ' <cmd>call terminal#toggle_popup#main()<cr>'
 
 " Options {{{1
 
@@ -108,8 +108,8 @@ augroup install_escape_mapping_in_terminal | au!
     "
     " The meta keysyms are disabled.
             " }}}
-    au TerminalWinOpen * tno <buffer><nowait><silent> <esc><esc> <c-\><c-n>:call terminal#fire_termleave()<cr>
-    au TerminalWinOpen * tno <buffer><nowait><silent> <c-\><c-n> <c-\><c-n>:call terminal#fire_termleave()<cr>
+    au TerminalWinOpen * tno <buffer><nowait> <esc><esc> <c-\><c-n><cmd>call terminal#fire_termleave()<cr>
+    au TerminalWinOpen * tno <buffer><nowait> <c-\><c-n> <c-\><c-n><cmd>call terminal#fire_termleave()<cr>
     au FileType fzf tunmap <buffer> <esc><esc>
 augroup END
 

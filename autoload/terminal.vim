@@ -11,8 +11,8 @@ fu terminal#setup() abort "{{{2
     " See: https://github.com/vim/vim/issues/2487#issuecomment-353735824
     " And `:h todo /modechanged`.
     "}}}
-    nno <buffer><nowait><silent> i :<c-u>call <sid>wrap('i')<cr>
-    nno <buffer><nowait><silent> a :<c-u>call <sid>wrap('a')<cr>
+    nno <buffer><nowait> i <cmd>call <sid>wrap('i')<cr>
+    nno <buffer><nowait> a <cmd>call <sid>wrap('a')<cr>
 
     nno <buffer><nowait><silent> I :<c-u>call <sid>wrap('I<c-v><c-a>')<cr>
     nno <buffer><nowait><silent> A :<c-u>call <sid>wrap('A<c-v><c-e>')<cr>
@@ -44,21 +44,22 @@ fu terminal#setup() abort "{{{2
     "}}}
     nno <buffer><expr><nowait> p <sid>p()
 
-    nno <buffer><nowait><silent> D  i<c-k><c-\><c-n>
-    nno <buffer><nowait><silent> dd i<c-e><c-u><c-\><c-n>
+    nno <buffer><nowait> D  i<c-k><c-\><c-n>
+    nno <buffer><nowait> dd i<c-e><c-u><c-\><c-n>
 
-    xno <buffer><nowait><silent> c <nop>
-    xno <buffer><nowait><silent> d <nop>
-    xno <buffer><nowait><silent> p <nop>
-    xno <buffer><nowait><silent> x <nop>
+    xno <buffer><nowait> c <nop>
+    xno <buffer><nowait> d <nop>
+    xno <buffer><nowait> p <nop>
+    xno <buffer><nowait> x <nop>
 
-    noremap <buffer><expr><nowait><silent> [c brackets#move#regex('shell_prompt', 0)
-    noremap <buffer><expr><nowait><silent> ]c brackets#move#regex('shell_prompt', 1)
-    sil! call repmap#make#repeatable({
-        \ 'mode': '',
-        \ 'buffer': 1,
-        \ 'from': s:SFILE .. ':' .. expand('<sflnum>'),
-        \ 'motions': [{'bwd': '[c', 'fwd': ']c'}]})
+    noremap <buffer><expr><nowait> [c brackets#move#regex('shell_prompt', 0)
+    noremap <buffer><expr><nowait> ]c brackets#move#regex('shell_prompt', 1)
+    sil! call repmap#make#repeatable(#{
+        \ mode: '',
+        \ buffer: 1,
+        \ from: s:SFILE .. ':' .. expand('<sflnum>'),
+        \ motions: [{'bwd': '[c', 'fwd': ']c'}]
+        \ })
 
     " If `'termwinkey'` is not set, Vim falls back on `C-w`.  See `:h 'twk`.
     let twk = &l:twk == '' ? '<c-w>' : &l:twk
@@ -90,7 +91,7 @@ fu terminal#setup() abort "{{{2
     " E.g., you can press `ZF` on a file output by `$ ls`.
     "}}}
     let &l:inex = expand('<SID>') .. 'inex()'
-    xno <buffer><nowait><silent> mq :<c-u>call <sid>mq()<cr>
+    xno <buffer><nowait> mq <c-\><c-n><cmd>call <sid>mq()<cr>
 
     " Rationale:{{{
     "
@@ -173,7 +174,7 @@ fu s:wrap(rhs) abort "{{{2
         " the buffer becomes normal:
         "
         "     if a:action is# 'enable'
-        "         nno <buffer><nowait><silent> D i<c-k><c-\><c-n>
+        "         nno <buffer><nowait> D i<c-k><c-\><c-n>
         "         ...
         "     elseif a:action is# 'disable'
         "         nunmap <buffer> D

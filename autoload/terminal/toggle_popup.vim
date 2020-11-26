@@ -111,7 +111,6 @@ fu terminal#toggle_popup#main() abort "{{{2
     call s:terminal_job_mapping()
     call s:dynamic_border_color(term_winid)
     call s:preserve_view()
-    return ''
 endfu
 "}}}1
 " Core {{{1
@@ -128,7 +127,6 @@ endfu
 fu s:terminal_job_mapping() abort "{{{2
     if !exists('g:_termpopup_lhs') | return | endif
 
-    " Assumption: `g:_termpopup_lhs` starts with `<c-g>`
     " Purpose:{{{
     "
     " When we  press `C-g  C-g` in a  terminal popup, the  zsh snippets  are not
@@ -154,10 +152,10 @@ fu s:terminal_job_mapping() abort "{{{2
     " Solution: Install a  mapping which remaps  `C-g C-g` into itself,  so that
     " when you press `C-g C-g`, it gets remapped and executed immediately.
     "}}}
-    tno <buffer><nowait> <c-g><c-g> <c-g><c-g>
+    let key = g:_termpopup_lhs->matchstr('^<[^>]*>')
+    exe 'tno <buffer><nowait> ' .. repeat(key, 2) .. ' ' .. repeat(key, 2)
 
-    exe printf('tno <buffer><nowait><silent> %s %s:<c-u>call terminal#toggle_popup#main()<cr>',
-        \ g:_termpopup_lhs, &l:twk == '' ? '<c-w>' : &l:twk)
+    exe printf('tno <buffer><nowait> %s <cmd>call terminal#toggle_popup#main()<cr>', g:_termpopup_lhs)
 endfu
 
 fu s:dynamic_border_color(winid) abort "{{{2
