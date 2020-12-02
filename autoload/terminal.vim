@@ -14,11 +14,11 @@ fu terminal#setup() abort "{{{2
     nno <buffer><nowait> i <cmd>call <sid>wrap('i')<cr>
     nno <buffer><nowait> a <cmd>call <sid>wrap('a')<cr>
 
-    nno <buffer><nowait><silent> I :<c-u>call <sid>wrap('I<c-v><c-a>')<cr>
-    nno <buffer><nowait><silent> A :<c-u>call <sid>wrap('A<c-v><c-e>')<cr>
+    nno <buffer><nowait> I <cmd>call <sid>wrap('I')<cr>
+    nno <buffer><nowait> A <cmd>call <sid>wrap('A')<cr>
 
-    nno <buffer><nowait><silent> C :<c-u>call <sid>wrap('i<c-v><c-k>')<cr>
-    nno <buffer><nowait><silent> cc :<c-u>call <sid>wrap('i<c-v><c-e><c-v><c-u>')<cr>
+    nno <buffer><nowait> C <cmd>call <sid>wrap('C')<cr>
+    nno <buffer><nowait> cc <cmd>call <sid>wrap('cc')<cr>
 
     " Let us paste a register like we would in a regular buffer (e.g. `"ap`).{{{
     "
@@ -136,9 +136,13 @@ fu terminal#setup() abort "{{{2
     endif
 endfu
 
-fu s:wrap(rhs) abort "{{{2
+fu s:wrap(lhs) abort "{{{2
     try
-        exe 'norm! ' .. a:rhs[0]
+        if a:lhs[0] =~? 'c'
+            norm! i
+        else
+            exe 'norm! ' .. a:lhs[0]
+        endif
     " Why?{{{
     "
     " When the job  associated to a terminal has finished,  pressing `i` doesn't
@@ -211,8 +215,21 @@ fu s:wrap(rhs) abort "{{{2
     " may have an impact even with a guard such as `if mode() is# 't'`).
     "}}}
     call s:fire_termenter()
-    if strlen(a:rhs) == 1 | return | endif
-    call term_sendkeys('', a:rhs[1:])
+    if a:lhs ==# 'i' || a:lhs ==# 'a'
+        return
+    endif
+    if a:lhs ==# 'C'
+        let startofline = term_getline('', '.')
+            \ ->matchstr('٪ \zs.*\%' .. col('.') .. 'c')
+        call term_sendkeys('', "\<c-e>\<c-u>" .. startofline)
+        return
+    endif
+    let keys = #{
+        \ I: "\<c-a>",
+        \ A: "\<c-e>",
+        \ cc: "\<c-e>\<c-u>",
+        \ }[a:lhs]
+    call term_sendkeys('', keys)
 endfu
 
 fu terminal#fire_termleave() abort "{{{2
