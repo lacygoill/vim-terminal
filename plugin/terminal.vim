@@ -60,7 +60,7 @@ set termwinkey=<c-s>
 
 " Autocmds {{{1
 
-augroup my_terminal | au!
+augroup MyTerminal | au!
     au TerminalWinOpen * call terminal#setup()
 augroup END
 
@@ -96,7 +96,7 @@ augroup END
 "
 " It doesn't work, but you get the idea.
 "}}}
-augroup install_escape_mapping_in_terminal | au!
+augroup InstallEscapeMappingInTerminal | au!
     " Do *not* install this mapping:  `tno <buffer> <esc>: <c-\><c-n>:`{{{
     "
     " Watch:

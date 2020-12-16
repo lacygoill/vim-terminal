@@ -108,7 +108,7 @@ fu terminal#setup() abort "{{{2
     setl so=0 siso=0
     setl nowrap
 
-    augroup term_preserve_cwd
+    augroup TermPreserveCwd
         au! * <buffer>
         " Useful to preserve the local cwd after you've temporarily loaded a different buffer in the terminal window.{{{
         "

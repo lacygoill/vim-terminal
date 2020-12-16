@@ -159,7 +159,7 @@ fu s:terminal_job_mapping() abort "{{{2
 endfu
 
 fu s:dynamic_border_color(winid) abort "{{{2
-    augroup dynamic_border_color
+    augroup DynamicBorderColor
         let cmd = printf('if win_getid() == %d|call popup_setoptions(%d, %s)|endif',
             \ a:winid, a:winid, #{borderhighlight: [s:OPTS.job_highlight]})
         exe 'au! User TermEnter ' .. cmd
