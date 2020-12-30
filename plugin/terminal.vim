@@ -9,7 +9,7 @@ let g:loaded_terminal = 1
 " Use the `term_setapi()` function.
 "
 "     :call term_setapi(buf, 'Myapi_')
-"                       ^-^
+"                       ^^^
 "                       number of terminal buffer for which you want to change the prefix
 "
 " Its effect  is local  to a given  buffer, so if  you want  to apply it  to all
