@@ -1,140 +1,150 @@
-" Interface {{{1
-fu terminal#unnest#main() abort "{{{2
-    " Why do you check this again?  We already did it in `plugin/terminal.vim`...{{{
-    "
-    " Just in case we call this function manually by accident.
-    "}}}
-    if !s:in_vim_terminal() | return | endif
-    " This check is important.{{{
-    "
-    "    - we assume that Vim was invoked in a pipeline if the current buffer has no name
-    "    - we fire `StdinReadPost` when we think Vim was invoked in a pipeline
-    "    - we have an autocmd which runs `:cquit` when the latter is fired and the buffer is empty
-    "
-    " As a result, if you start Vim  with no argument in a Vim terminal, without
-    " this  guard,  `:cquit` would  be  run  in the  outer  Vim  making it  quit
-    " entirely.
-    "
-    " As a bonus, this  guard lets us start a nested Vim  instance, for the rare
-    " case where  we would want  to study some bug  or Vim's behavior  when it's
-    " nested.
-    "}}}
-    if s:nothing_to_read() | return | endif
+vim9script noclear
 
-    if s:vim_used_as_manpager()
-        return s:open_manpage()
+if exists('loaded') | finish | endif
+var loaded = true
+
+# Interface {{{1
+def terminal#unnest#main() #{{{2
+    # Why do you check this again?  We already did it in `plugin/terminal.vim`...{{{
+    #
+    # Just in case we call this function manually by accident.
+    #}}}
+    if !InVimTerminal() | return | endif
+    # This check is important.{{{
+    #
+    #    - we assume that Vim was invoked in a pipeline if the current buffer has no name
+    #    - we fire `StdinReadPost` when we think Vim was invoked in a pipeline
+    #    - we have an autocmd which runs `:cquit` when the latter is fired and the buffer is empty
+    #
+    # As a result, if you start Vim  with no argument in a Vim terminal, without
+    # this  guard,  `:cquit` would  be  run  in the  outer  Vim  making it  quit
+    # entirely.
+    #
+    # As a bonus, this  guard lets us start a nested Vim  instance, for the rare
+    # case where  we would want  to study some bug  or Vim's behavior  when it's
+    # nested.
+    #}}}
+    if NothingToRead() | return | endif
+
+    if VimUsedAsManpager()
+        return OpenManpage()
     endif
 
-    let filelist = s:write_filepaths()
-    let used_in_a_pipeline = s:called_by_vipe() || expand('%:p') == ''
-    call s:open_files(filelist)
+    var filelist = WriteFilepaths()
+    var used_in_a_pipeline = CalledByVipe() || expand('%:p') == ''
+    OpenFiles(filelist)
     if used_in_a_pipeline
-        call s:fire_stdinreadpost()
+        FireStdinreadpost()
     endif
 
-    " Why the delay?{{{
-    "
-    "     $ vim +term
-    "     $ trans hedge | vipe
-    "
-    " The buffer which is opened in the outer Vim is empty.
-    " Delaying `:qa!` fixes the issue.
-    "}}}
-    call timer_start(0, {-> execute('qa!')})
-endfu
-"}}}1
-" Core {{{1
-fu s:open_manpage() abort "{{{2
-    let page = expand('%:p')->matchstr('man://\zs.*')
-    " Why `json_encode()` instead of `string()`?{{{
-    "
-    " The man page must be surrounded by double quotes, not single quotes.
-    "}}}
-    call printf('%s]51;["call", "Tapi_man", %s]%s', "\033", json_encode(page), "\007")->echoraw()
+    # Why the delay?{{{
+    #
+    #     $ vim +term
+    #     $ trans hedge | vipe
+    #
+    # The buffer which is opened in the outer Vim is empty.
+    # Delaying `:qa!` fixes the issue.
+    #}}}
+    timer_start(0, () => execute('qa!'))
+enddef
+#}}}1
+# Core {{{1
+def OpenManpage() #{{{2
+    var page = expand('%:p')->matchstr('man://\zs.*')
+    # Why `json_encode()` instead of `string()`?{{{
+    #
+    # The man page must be surrounded by double quotes, not single quotes.
+    #}}}
+    printf('%s]51;["call", "Tapi_man", %s]%s', "\033", json_encode(page), "\007")
+        ->echoraw()
     qa!
-endfu
+enddef
 
-fu s:write_filepaths() abort "{{{2
-    " handle `$ some cmd | vim -`
+def WriteFilepaths(): string #{{{2
+    # handle `$ some cmd | vim -`
+    var files: list<string>
     if expand('%:p') == ''
-        let stdin = tempname()
-        let files = [stdin]
-        " Don't use `:w`.{{{
-        "
-        "     exe 'w ' .. stdin
-        "
-        " It would change the current buffer.
-        " We want  the latter to be  unchanged, because we may  inspect its name
-        " later, and check whether it's empty.
-        "
-        " Yes, we could  refactor the code so that it  doesn't happen *now*, but
-        " it may  happen in the  future after  yet another refactoring;  IOW, it
-        " would be too brittle.
-        "}}}
-        call getline(1, '$')->writefile(stdin)
+        var stdin = tempname()
+        files = [stdin]
+        # Don't use `:w`.{{{
+        #
+        #     exe 'w ' .. stdin
+        #
+        # It would change the current buffer.
+        # We want  the latter to be  unchanged, because we may  inspect its name
+        # later, and check whether it's empty.
+        #
+        # Yes, we could  refactor the code so that it  doesn't happen *now*, but
+        # it may  happen in the  future after  yet another refactoring;  IOW, it
+        # would be too brittle.
+        #}}}
+        getline(1, '$')->writefile(stdin)
     else
-        let files = argv()->map({_, v -> fnamemodify(v, ':p')})
+        files = argv()->map((_, v) => fnamemodify(v, ':p'))
     endif
-    " Don't try to pass the file paths directly to the outer Vim.{{{
-    "
-    " It makes the code much more verbose.
-    " Indeed, if there  are too many files, and the  OSC 51 sequence gets too long,
-    " the command fails; the outer Vim doesn't open anything.
-    " You have to split the command `:tab drop file1 file2 ...` into sth like:
-    "
-    "     :tab drop file1 ... file50
-    "     :argadd file51 ...
-    "     :argadd file101 ...
-    "     ...
-    "
-    " So, you need a  while loop to iterate over the list  of files, and you
-    " need an additional `Tapi_` function to execute `:argadd`.
-    "}}}
-    let filelist = tempname()
-    call writefile(files, filelist)
+    # Don't try to pass the file paths directly to the outer Vim.{{{
+    #
+    # It makes the code much more verbose.
+    # Indeed, if there  are too many files, and the  OSC 51 sequence gets too long,
+    # the command fails; the outer Vim doesn't open anything.
+    # You have to split the command `:tab drop file1 file2 ...` into sth like:
+    #
+    #     :tab drop file1 ... file50
+    #     :argadd file51 ...
+    #     :argadd file101 ...
+    #     ...
+    #
+    # So, you need a  while loop to iterate over the list  of files, and you
+    # need an additional `Tapi_` function to execute `:argadd`.
+    #}}}
+    var filelist = tempname()
+    writefile(files, filelist)
     return filelist
-endfu
+enddef
 
-fu s:open_files(filelist) abort "{{{2
-    " to avoid error message due to swap files when opening files in the outer Vim
-    " Why the bang?{{{
-    "
-    " To suppress `E89` which is raised when the current buffer is an unnamed one:
-    "
-    "     E89: No write since last change for buffer 1 (add ! to override)~
-    "
-    " It happens when Vim is used in a pipeline to read the output of another command:
-    "
-    "     $ some cmd | vim -
-    "}}}
-    %bd!
-    " open files in the outer Vim instance using `:h terminal-api`
-    call printf('%s]51;["call", "Tapi_drop", "%s"]%s', "\033", a:filelist, "\007")->echoraw()
-endfu
+def OpenFiles(filelist: string) #{{{2
+    # to avoid error message due to swap files when opening files in the outer Vim
+    # Why the bang?{{{
+    #
+    # To suppress `E89` which is raised when the current buffer is an unnamed one:
+    #
+    #     E89: No write since last change for buffer 1 (add ! to override)~
+    #
+    # It happens when Vim is used in a pipeline to read the output of another command:
+    #
+    #     $ some cmd | vim -
+    #}}}
+    :%bd!
+    # open files in the outer Vim instance using `:h terminal-api`
+    printf('%s]51;["call", "Tapi_drop", "%s"]%s', "\033", filelist, "\007")
+        ->echoraw()
+enddef
 
-fu s:fire_stdinreadpost() abort "{{{2
-    " correctly highlight a buffer containing ansi escape sequences{{{
-    "
-    "     $ vim +term
-    "     $ trans word 2>&1 | vipe >/dev/null
-    "}}}
-    call printf('%s]51;["call", "Tapi_exe", "do <nomodeline> StdinReadPost"]%s', "\033", "\007")->echoraw()
-endfu
-"}}}1
-" Utilities {{{1
-fu s:in_vim_terminal() abort "{{{2
+def FireStdinreadpost() #{{{2
+    # correctly highlight a buffer containing ansi escape sequences{{{
+    #
+    #     $ vim +term
+    #     $ trans word 2>&1 | vipe >/dev/null
+    #}}}
+    printf('%s]51;'
+        .. '["call", "Tapi_exe", "do <nomodeline> StdinReadPost"]'
+        .. '%s', "\033", "\007")->echoraw()
+enddef
+#}}}1
+# Utilities {{{1
+def InVimTerminal(): bool #{{{2
     return !empty($VIM_TERMINAL)
-endfu
+enddef
 
-fu s:nothing_to_read() abort "{{{2
+def NothingToRead(): bool #{{{2
     return (line('$') + 1)->line2byte() <= 2
-endfu
+enddef
 
-fu s:vim_used_as_manpager() abort "{{{2
-    return expand('%:p') =~# '^\Cman://'
-endfu
+def VimUsedAsManpager(): bool #{{{2
+    return expand('%:p') =~ '^\Cman://'
+enddef
 
-fu s:called_by_vipe() abort "{{{2
-    return $_ =~# '\C/vipe$'
-endfu
+def CalledByVipe(): bool #{{{2
+    return $_ =~ '\C/vipe$'
+enddef
 
