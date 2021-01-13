@@ -284,7 +284,8 @@ enddef
 
 def InsertRegister(): string #{{{2
     var numeric = range(10)
-    var alpha = range(char2nr('a'), char2nr('z'))->map('nr2char(v:val)')
+    var alpha = range(char2nr('a'), char2nr('z'))
+        ->mapnew((_, v) => nr2char(v))
     var other = ['-', '*', '+', '/', '=']
     var reg = getchar()->nr2char()
     if index(numeric + alpha + other, reg) == -1

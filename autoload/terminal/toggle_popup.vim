@@ -40,7 +40,7 @@ enddef
 Sanitize()
 lockvar OPTS
 
-var popup = {}
+var popup: dict<any> = {}
 
 const DEBUG = false
 if DEBUG
