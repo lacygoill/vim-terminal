@@ -143,7 +143,9 @@ def g:Tapi_drop(_: any, file_listing: string) #{{{3
         return
     else
         files = readfile(file_listing)
-        if empty(files) | return | endif
+        if empty(files)
+            return
+        endif
     endif
     try
         if win_gettype() == 'popup'
@@ -153,6 +155,7 @@ def g:Tapi_drop(_: any, file_listing: string) #{{{3
     # E994, E863, ...
     catch
         Catch()
+        return
     endtry
 enddef
 
@@ -173,6 +176,7 @@ def g:Tapi_man(_: any, page: string) #{{{3
         exe 'tab Man ' .. page
     catch
         Catch()
+        return
     endtry
 enddef
 #}}}2

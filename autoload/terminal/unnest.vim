@@ -9,7 +9,9 @@ def terminal#unnest#main() #{{{2
     #
     # Just in case we call this function manually by accident.
     #}}}
-    if !InVimTerminal() | return | endif
+    if !InVimTerminal()
+        return
+    endif
     # This check is important.{{{
     #
     #    - we assume that Vim was invoked in a pipeline if the current buffer has no name
@@ -24,14 +26,16 @@ def terminal#unnest#main() #{{{2
     # case where  we would want  to study some bug  or Vim's behavior  when it's
     # nested.
     #}}}
-    if NothingToRead() | return | endif
+    if NothingToRead()
+        return
+    endif
 
     if VimUsedAsManpager()
         return OpenManpage()
     endif
 
-    var filelist = WriteFilepaths()
-    var used_in_a_pipeline = CalledByVipe() || expand('%:p') == ''
+    var filelist: string = WriteFilepaths()
+    var used_in_a_pipeline: bool = CalledByVipe() || expand('%:p') == ''
     OpenFiles(filelist)
     if used_in_a_pipeline
         FireStdinreadpost()
@@ -50,7 +54,7 @@ enddef
 #}}}1
 # Core {{{1
 def OpenManpage() #{{{2
-    var page = expand('%:p')->matchstr('man://\zs.*')
+    var page: string = expand('%:p')->matchstr('man://\zs.*')
     # Why `json_encode()` instead of `string()`?{{{
     #
     # The man page must be surrounded by double quotes, not single quotes.
@@ -64,7 +68,7 @@ def WriteFilepaths(): string #{{{2
     # handle `$ some cmd | vim -`
     var files: list<string>
     if expand('%:p') == ''
-        var stdin = tempname()
+        var stdin: string = tempname()
         files = [stdin]
         # Don't use `:w`.{{{
         #
@@ -97,7 +101,7 @@ def WriteFilepaths(): string #{{{2
     # So, you need a  while loop to iterate over the list  of files, and you
     # need an additional `Tapi_` function to execute `:argadd`.
     #}}}
-    var filelist = tempname()
+    var filelist: string = tempname()
     writefile(files, filelist)
     return filelist
 enddef

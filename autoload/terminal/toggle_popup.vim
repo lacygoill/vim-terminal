@@ -12,7 +12,7 @@ var loaded = true
 import Catch from 'lg.vim'
 import Popup_create from 'lg/popup.vim'
 
-var OPTS = {
+var OPTS: dict<any> = {
     # percentage of the total width
     width: 0.9,
     # percentage of the total height
@@ -42,7 +42,7 @@ lockvar OPTS
 
 var popup: dict<any> = {}
 
-const DEBUG = false
+const DEBUG: bool = false
 if DEBUG
     g:popup = popup
 endif
@@ -60,8 +60,8 @@ def terminal#toggle_popup#main() #{{{2
         endif
     endif
 
-    var bufnr = get(popup, 'bufnr', -1)
-    var opts = GetOpts()
+    var bufnr: number = get(popup, 'bufnr', -1)
+    var opts: dict<any> = GetOpts()
     var term_bufnr: number
     var term_winid: number
     try
@@ -73,7 +73,9 @@ def terminal#toggle_popup#main() #{{{2
         return
     endtry
 
-    if !has_key(popup, 'bufnr') | popup.bufnr = term_bufnr | endif
+    if !has_key(popup, 'bufnr')
+        popup.bufnr = term_bufnr
+    endif
     popup.winid = term_winid
     # If the buffer gets wiped out by accident, re-init the variable.{{{
     #
@@ -126,11 +128,14 @@ def Close() #{{{2
     # can happen after you've loaded a regular file in a terminal popup by pressing `gf`
     catch /^Vim\%((\a\+)\)\=:E994:/
         Catch()
+        return
     endtry
 enddef
 
 def TerminalJobMapping() #{{{2
-    if !exists('g:_termpopup_lhs') | return | endif
+    if !exists('g:_termpopup_lhs')
+        return
+    endif
 
     # Purpose:{{{
     #
@@ -157,7 +162,7 @@ def TerminalJobMapping() #{{{2
     # Solution: Install a  mapping which remaps  `C-g C-g` into itself,  so that
     # when you press `C-g C-g`, it gets remapped and executed immediately.
     #}}}
-    var key = g:_termpopup_lhs->matchstr('^<[^>]*>')
+    var key: string = g:_termpopup_lhs->matchstr('^<[^>]*>')
     exe 'tno <buffer><nowait> ' .. repeat(key, 2) .. ' ' .. repeat(key, 2)
 
     exe printf(
@@ -168,7 +173,7 @@ enddef
 
 def DynamicBorderColor(winid: number) #{{{2
     augroup DynamicBorderColor
-        var cmd = printf('if win_getid() == %d | popup_setoptions(%d, %s) | endif',
+        var cmd: string = printf('if win_getid() == %d | popup_setoptions(%d, %s) | endif',
             winid, winid, {borderhighlight: [OPTS.job_highlight]})
         exe 'au! User TermEnter ' .. cmd
         # Why inspecting `mode()`?{{{
@@ -185,7 +190,9 @@ def DynamicBorderColor(winid: number) #{{{2
         # OTOH, when  you display  an *existing*  terminal buffer,  Vim probably
         # remembers the last mode you were in.
         #}}}
-        if mode() == 't' | exe cmd | endif
+        if mode() == 't'
+            exe cmd
+        endif
         # Why `:redraw`?{{{
         #
         # To make Vim apply the new color on the border.
@@ -220,7 +227,9 @@ def PreserveView() #{{{2
     # Besides, it can only work when you re-display a buffer in the same window.
     # That's not what is happening here; we re-display a buffer in a *new* window.
     #}}}
-    if has_key(popup, 'view') | winrestview(popup.view) | endif
+    if has_key(popup, 'view')
+        winrestview(popup.view)
+    endif
 enddef
 #}}}1
 # Util {{{1
@@ -252,8 +261,8 @@ def GetOpts(): dict<any> #{{{2
 enddef
 
 def GetGeometry(): list<number> #{{{2
-    var width = float2nr(&columns * OPTS.width) - 4
-    var height = float2nr(&lines * OPTS.height) - 2
+    var width: number = float2nr(&columns * OPTS.width) - 4
+    var height: number = float2nr(&lines * OPTS.height) - 2
 
     # Why `&lines - height`?  Why not just `&lines`{{{
     #
@@ -261,8 +270,8 @@ def GetGeometry(): list<number> #{{{2
     # set to `&lines`, which  is wrong; the top of the popup  window can't be on
     # the last line of the screen; the lowest it can be is `&lines - height`.
     #}}}
-    var line = float2nr(OPTS.yoffset * (&lines - height))
-    var col = float2nr(OPTS.xoffset * (&columns - width))
+    var line: number = float2nr(OPTS.yoffset * (&lines - height))
+    var col: number = float2nr(OPTS.xoffset * (&columns - width))
 
     return [line, col, width, height]
 enddef

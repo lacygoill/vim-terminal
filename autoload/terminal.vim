@@ -4,7 +4,7 @@ if exists('loaded') | finish | endif
 var loaded = true
 
 import Catch from 'lg.vim'
-const SFILE = expand('<sfile>:p')
+const SFILE: string = expand('<sfile>:p')
 
 # Interface {{{1
 def terminal#setup() #{{{2
@@ -56,17 +56,22 @@ def terminal#setup() #{{{2
     xno <buffer><nowait> p <nop>
     xno <buffer><nowait> x <nop>
 
-    noremap <buffer><expr><nowait> [c brackets#move#regex('shell_prompt', 0)
-    noremap <buffer><expr><nowait> ]c brackets#move#regex('shell_prompt', 1)
-    sil! repmap#make#repeatable({
-        mode: '',
-        buffer: true,
-        from: SFILE .. ':' .. expand('<sflnum>'),
-        motions: [{bwd: '[c', fwd: ']c'}]
-        })
+    noremap <buffer><expr><nowait> [c brackets#move#regex('shell_prompt', v:false)
+    noremap <buffer><expr><nowait> ]c brackets#move#regex('shell_prompt', v:true)
+    # Do not remove the try/catch.
+    # `sil!` cannot always suppress a thrown error in Vim9.
+    try
+        sil! repmap#make#repeatable({
+            mode: '',
+            buffer: true,
+            from: SFILE .. ':' .. expand('<sflnum>'),
+            motions: [{bwd: '[c', fwd: ']c'}]
+            })
+    catch /^E8003:/
+    endtry
 
     # If `'termwinkey'` is not set, Vim falls back on `C-w`.  See `:h 'twk`.
-    var twk = &l:twk == '' ? '<c-w>' : &l:twk
+    var twk: string = &l:twk == '' ? '<c-w>' : &l:twk
     # don't execute an inserted register when it contains a newline
     exe 'tno <buffer><expr><nowait> ' .. twk .. '" <sid>InsertRegister()'
     # we don't want a timeout when we press the termwinkey + `C-w` to focus the next window:
@@ -224,12 +229,12 @@ def Wrap(lhs: string) #{{{2
         return
     endif
     if lhs == 'C'
-        var startofline = term_getline('', '.')
+        var startofline: string = term_getline('', '.')
             ->matchstr('٪ \zs.*\%' .. col('.') .. 'c')
         term_sendkeys('', "\<c-e>\<c-u>" .. startofline)
         return
     endif
-    var keys = {
+    var keys: string = {
         I: "\<c-a>",
         A: "\<c-e>",
         cc: "\<c-e>\<c-u>",
@@ -245,13 +250,13 @@ enddef
 #}}}1
 # Core {{{1
 def KillLine() #{{{2
-    var buf = bufnr('%')
-    var vimpos = getcurpos()
-    var jobpos = term_getcursor(buf)
-    var offcol = jobpos[1] - vimpos[2]
-    var offline = jobpos[0] - vimpos[1]
+    var buf: number = bufnr('%')
+    var vimpos: list<number> = getcurpos()
+    var jobpos: list<any> = term_getcursor(buf)
+    var offcol: number = jobpos[1] - vimpos[2]
+    var offline: number = jobpos[0] - vimpos[1]
     norm! i
-    var keys = repeat("\<left>", offcol)
+    var keys: string = repeat("\<left>", offcol)
         .. repeat("\<up>", offline)
         .. "\<c-k>"
     term_sendkeys(buf, keys)
@@ -260,18 +265,18 @@ def KillLine() #{{{2
 enddef
 
 def Inex(): string #{{{2
-    var cwd = Getcwd()
+    var cwd: string = Getcwd()
     # most of the code is leveraged from a similar function in our vimrc
-    var line = getline('.')
-    var pat = '${\f\+}' .. '\V' .. v:fname .. '\m'
+    var line: string = getline('.')
+    var pat: string = '${\f\+}' .. '\V' .. v:fname .. '\m'
         .. '\|${\V' .. v:fname .. '}\f\+'
         .. '\|\%' .. col('.') .. 'c${\f\+}\f\+'
-    var cursor_after = '\m\%(.*\%' .. col('.') .. 'c\)\@='
-    var cursor_before = '\m\%(\%' .. col('.') .. 'c.*\)\@<='
+    var cursor_after: string = '\m\%(.*\%' .. col('.') .. 'c\)\@='
+    var cursor_before: string = '\m\%(\%' .. col('.') .. 'c.*\)\@<='
     pat = cursor_after .. pat .. cursor_before
     if line =~ pat
         pat = matchstr(line, pat)
-        var env = matchstr(pat, '\w\+')
+        var env: string = matchstr(pat, '\w\+')
         return substitute(pat, '${' .. env .. '}', eval('$' .. env), '')
     elseif line =~ cursor_after .. '=' .. cursor_before
         return substitute(v:fname, '.*=', '', '')
@@ -283,32 +288,32 @@ def Inex(): string #{{{2
 enddef
 
 def InsertRegister(): string #{{{2
-    var numeric = range(10)
-    var alpha = range(char2nr('a'), char2nr('z'))
+    var numeric: list<number> = range(10)
+    var alpha: list<string> = range(char2nr('a'), char2nr('z'))
         ->mapnew((_, v) => nr2char(v))
-    var other = ['-', '*', '+', '/', '=']
-    var reg = getchar()->nr2char()
+    var other: list<string> = ['-', '*', '+', '/', '=']
+    var reg: string = getchar()->nr2char()
     if index(numeric + alpha + other, reg) == -1
         return ''
     endif
     UseBracketedPaste(reg)
-    var twk = &l:twk == '' ? "\<c-w>" : eval('"\' .. &l:twk .. '"')
+    var twk: string = &l:twk == '' ? "\<c-w>" : eval('"\' .. &l:twk .. '"')
     return twk .. '"' .. reg
 enddef
 
 def SelectionToQf() #{{{2
-    var cwd = Getcwd()
-    var lnum1 = line("'<")
-    var lnum2 = line("'>")
-    var lines = getline(lnum1, lnum2)->map((_, v) => cwd .. v)
+    var cwd: string = Getcwd()
+    var lnum1: number = line("'<")
+    var lnum2: number = line("'>")
+    var lines: list<string> = getline(lnum1, lnum2)->map((_, v) => cwd .. v)
     setqflist([], ' ', {lines: lines, title: ':' .. lnum1 .. ',' .. lnum2 .. 'cgetbuffer'})
     cw
 enddef
 
 def Put(): string #{{{2
-    var reg = v:register
+    var reg: string = v:register
     UseBracketedPaste(reg)
-    var twk = &l:twk == '' ? "\<c-w>" : eval('"\' .. &l:twk .. '"')
+    var twk: string = &l:twk == '' ? "\<c-w>" : eval('"\' .. &l:twk .. '"')
     FireTermenter()
     return "i\<c-e>" .. twk .. '"' .. reg
 enddef
@@ -335,7 +340,7 @@ def FireTermenter() #{{{2
 enddef
 
 def Getcwd(): string #{{{2
-    var cwd = (search('^٪', 'bnW') - 1)
+    var cwd: string = (search('^٪', 'bnW') - 1)
         ->getline()
         # We include a no-break space right after the shell's cwd in our shell's prompt.{{{
         #
@@ -352,11 +357,11 @@ enddef
 
 def UseBracketedPaste(reg: string) #{{{2
     # don't execute anything, even if the register contains newlines
-    var reginfo = getreginfo(reg)
-    var save = deepcopy(reginfo)
+    var reginfo: dict<any> = getreginfo(reg)
+    var save: dict<any> = deepcopy(reginfo)
     if get(reginfo, 'regcontents', [])->len() > 1
-        var before = &t_PS
-        var after = &t_PE
+        var before: string = &t_PS
+        var after: string = &t_PE
         reginfo.regcontents[0] = before .. reginfo.regcontents[0]
         # TODO(Vim9): In the future, try to use `..=` to simplify:
         #     reginfo.regcontents[-1] ..= after
