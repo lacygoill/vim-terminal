@@ -256,8 +256,7 @@ def GetOpts(): dict<any> #{{{2
         width: width,
         height: height,
         }
-    extend(opts, {borderhighlight: OPTS.normal_highlight, term: true})
-    return opts
+    return extendnew(opts, {borderhighlight: OPTS.normal_highlight, term: true})
 enddef
 
 def GetGeometry(): list<number> #{{{2

@@ -34,7 +34,7 @@ import Catch from 'lg.vim'
 #
 # To have the guarantee to always be  able to toggle the popup from normal mode,
 # *and* from Terminal-Job mode with the same key.
-# Have a look at `s:mapping()` in `autoload/terminal/toggle_popup.vim`.
+# Have a look at `TerminalJobMapping()` in `autoload/terminal/toggle_popup.vim`.
 #}}}
 g:_termpopup_lhs = '<c-g><c-j>'
 exe 'nno ' .. g:_termpopup_lhs .. ' <cmd>call terminal#toggle_popup#main()<cr>'
