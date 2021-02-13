@@ -108,17 +108,22 @@ enddef
 
 def OpenFiles(filelist: string) #{{{2
     # to avoid error message due to swap files when opening files in the outer Vim
-    # Why the bang?{{{
-    #
-    # To suppress `E89` which is raised when the current buffer is an unnamed one:
-    #
-    #     E89: No write since last change for buffer 1 (add ! to override)~
-    #
-    # It happens when Vim is used in a pipeline to read the output of another command:
-    #
-    #     $ some cmd | vim -
-    #}}}
-    :%bd!
+    try
+        # Why the bang?{{{
+        #
+        # To suppress `E89` which is raised when the current buffer is an unnamed one:
+        #
+        #     E89: No write since last change for buffer 1 (add ! to override)~
+        #
+        # It happens when Vim is used in a pipeline to read the output of another command:
+        #
+        #     $ some cmd | vim -
+        #}}}
+        :%bd!
+    # E937: Attempt to delete a buffer that is in use: [NULL]
+    # That might happen if there are popup windows.
+    catch /^Vim\%((\a\+)\)\=:E937:/
+    endtry
     # open files in the outer Vim instance using `:h terminal-api`
     printf('%s]51;["call", "Tapi_drop", "%s"]%s', "\033", filelist, "\007")
         ->echoraw()
