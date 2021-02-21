@@ -290,7 +290,7 @@ enddef
 def InsertRegister(): string #{{{2
     var numeric: list<number> = range(10)
     var alpha: list<string> = range(char2nr('a'), char2nr('z'))
-        ->mapnew((_, v) => nr2char(v))
+        ->mapnew((_, v: number): string => nr2char(v))
     var other: list<string> = ['-', '*', '+', '/', '=']
     var reg: string = getchar()->nr2char()
     if index(numeric + alpha + other, reg) == -1
@@ -305,7 +305,8 @@ def SelectionToQf() #{{{2
     var cwd: string = Getcwd()
     var lnum1: number = line("'<")
     var lnum2: number = line("'>")
-    var lines: list<string> = getline(lnum1, lnum2)->map((_, v) => cwd .. v)
+    var lines: list<string> = getline(lnum1, lnum2)
+        ->map((_, v: string): string => cwd .. v)
     setqflist([], ' ', {lines: lines, title: ':' .. lnum1 .. ',' .. lnum2 .. 'cgetbuffer'})
     cw
 enddef

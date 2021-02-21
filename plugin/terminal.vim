@@ -151,7 +151,9 @@ def g:Tapi_drop(_: any, file_listing: string) #{{{3
         if win_gettype() == 'popup'
             win_getid()->popup_close()
         endif
-        exe 'drop ' .. map(files, (_, v) => fnameescape(v))->join()
+        exe 'drop ' .. files
+            ->map((_, v: string): string => fnameescape(v))
+            ->join()
     # E994, E863, ...
     catch
         Catch()
