@@ -48,7 +48,7 @@ if DEBUG
 endif
 
 # Interface {{{1
-def terminal#toggle_popup#main() #{{{2
+def terminal#togglePopup#main() #{{{2
     if has_key(popup, 'winid')
         # if the popup terminal is already open on the current tab page, just close it
         if IsOpenOnCurrentTabpage()
@@ -159,7 +159,7 @@ def TerminalJobMapping() #{{{2
     exe 'tno <buffer><nowait> ' .. repeat(key, 2) .. ' ' .. repeat(key, 2)
 
     exe printf(
-        'tno <buffer><nowait> %s <cmd>call terminal#toggle_popup#main()<cr>',
+        'tno <buffer><nowait> %s <cmd>call terminal#togglePopup#main()<cr>',
         g:_termpopup_lhs
         )
 enddef

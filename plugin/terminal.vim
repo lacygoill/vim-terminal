@@ -37,7 +37,7 @@ import Catch from 'lg.vim'
 # Have a look at `TerminalJobMapping()` in `autoload/terminal/toggle_popup.vim`.
 #}}}
 g:_termpopup_lhs = '<c-g><c-j>'
-exe 'nno ' .. g:_termpopup_lhs .. ' <cmd>call terminal#toggle_popup#main()<cr>'
+exe 'nno ' .. g:_termpopup_lhs .. ' <cmd>call terminal#togglePopup#main()<cr>'
 
 # Options {{{1
 
