@@ -364,8 +364,6 @@ def UseBracketedPaste(reg: string) #{{{2
         var before: string = &t_PS
         var after: string = &t_PE
         reginfo.regcontents[0] = before .. reginfo.regcontents[0]
-        # TODO(Vim9): In the future, try to use `..=` to simplify:
-        #     reginfo.regcontents[-1] ..= after
         reginfo.regcontents[-1] = reginfo.regcontents[-1] .. after
         # Don't use the `'l'` or `'V'` type.  It would cause the automatic execution of the pasted command.
         reginfo.regtype = 'c'

@@ -40,7 +40,7 @@ enddef
 Sanitize()
 lockvar OPTS
 
-var popup: dict<any> = {}
+var popup: dict<any>
 
 const DEBUG: bool = false
 if DEBUG
@@ -64,14 +64,7 @@ def terminal#toggle_popup#main() #{{{2
     var opts: dict<any> = GetOpts()
     var term_bufnr: number
     var term_winid: number
-    try
-        [term_bufnr, term_winid] = Popup_create(bufnr, opts)
-    catch /^Vim\%((\a\+)\)\=:E117:/
-        echohl ErrorMsg
-        echom 'need Popup_create(); install vim-lg-lib'
-        echohl NONE
-        return
-    endtry
+    [term_bufnr, term_winid] = Popup_create(bufnr, opts)
 
     if !has_key(popup, 'bufnr')
         popup.bufnr = term_bufnr
