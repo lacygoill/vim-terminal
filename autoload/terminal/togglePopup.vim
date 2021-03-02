@@ -155,7 +155,7 @@ def TerminalJobMapping() #{{{2
     # Solution: Install a  mapping which remaps  `C-g C-g` into itself,  so that
     # when you press `C-g C-g`, it gets remapped and executed immediately.
     #}}}
-    var key: string = g:_termpopup_lhs->matchstr('^<[^>]*>')
+    var key: string = matchstr(g:_termpopup_lhs, '^<[^>]*>')
     exe 'tno <buffer><nowait> ' .. repeat(key, 2) .. ' ' .. repeat(key, 2)
 
     exe printf(

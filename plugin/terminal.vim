@@ -129,7 +129,7 @@ endif
 
 # Functions {{{1
 # Interface {{{2
-def g:Tapi_drop(_: any, file_listing: string) #{{{3
+def g:Tapi_drop(_a: any, file_listing: string) #{{{3
     # Open a file in the *current* Vim instance, rather than in a nested one.{{{
     #
     # The function  is called  automatically by `terminal#unnest#main()`  if Vim
@@ -161,14 +161,14 @@ def g:Tapi_drop(_: any, file_listing: string) #{{{3
     endtry
 enddef
 
-def g:Tapi_exe(_: any, cmd: string) #{{{3
+def g:Tapi_exe(_a: any, cmd: string) #{{{3
     # Run an arbitrary Ex command.
     # `:sil` is useful  to prevent `:lcd` from  printing the new Vim  cwd on the
     # command-line.
     sil exe cmd
 enddef
 
-def g:Tapi_man(_: any, page: string) #{{{3
+def g:Tapi_man(_a: any, page: string) #{{{3
     # open manpage in outer Vim
     if exists(':Man') != 2
         echom ':Man needs to be installed'

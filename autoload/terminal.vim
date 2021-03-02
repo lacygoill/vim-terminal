@@ -269,19 +269,19 @@ def Inex(): string #{{{2
     # most of the code is leveraged from a similar function in our vimrc
     var line: string = getline('.')
     var pat: string = '${\f\+}' .. '\V' .. v:fname .. '\m'
-        .. '\|${\V' .. v:fname .. '}\f\+'
+        .. '\|${\V' .. v:fname .. '\m}\f\+'
         .. '\|\%' .. col('.') .. 'c${\f\+}\f\+'
-    var cursor_after: string = '\m\%(.*\%' .. col('.') .. 'c\)\@='
-    var cursor_before: string = '\m\%(\%' .. col('.') .. 'c.*\)\@<='
+    var cursor_after: string = '\%(.*\%' .. col('.') .. 'c\)\@='
+    var cursor_before: string = '\%(\%' .. col('.') .. 'c.*\)\@<='
     pat = cursor_after .. pat .. cursor_before
     if line =~ pat
         pat = matchstr(line, pat)
         var env: string = matchstr(pat, '\w\+')
-        return substitute(pat, '${' .. env .. '}', eval('$' .. env), '')
+        return pat->substitute('${' .. env .. '}', eval('$' .. env), '')
     elseif line =~ cursor_after .. '=' .. cursor_before
-        return substitute(v:fname, '.*=', '', '')
+        return v:fname->substitute('.*=', '', '')
     elseif line =~ '^\./'
-        return substitute(v:fname, '^\./', cwd, '')
+        return v:fname->substitute('^\./', cwd, '')
     else
         return cwd .. v:fname
     endif
@@ -349,10 +349,10 @@ def Getcwd(): string #{{{2
         # git branch name.
         #}}}
         ->matchstr('.\{-}\ze\%xa0')
-    # Warning: in the future, we may define other named directories in our zshrc.
-    # Warning: `1000` may be the wrong UID.  We should inspect `$UID` but it's not in the environment.
-    cwd = substitute(cwd, '^\~tmp', '/run/user/1000/tmp', '')
-    cwd = substitute(cwd, '^\~xdcc', $HOME .. '/Dowloads/XDCC', '')
+        # Warning: in the future, we may define other named directories in our zshrc.
+        # Warning: `1000` may be the wrong UID.  We should inspect `$UID` but it's not in the environment.
+        ->substitute('^\~tmp', '/run/user/1000/tmp', '')
+        ->substitute('^\~xdcc', $HOME .. '/Dowloads/XDCC', '')
     return cwd .. '/'
 enddef
 
