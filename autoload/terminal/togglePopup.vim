@@ -49,7 +49,7 @@ endif
 
 # Interface {{{1
 def terminal#togglePopup#main() #{{{2
-    if has_key(popup, 'winid')
+    if popup->has_key('winid')
         # if the popup terminal is already open on the current tab page, just close it
         if IsOpenOnCurrentTabpage()
             Close()
@@ -66,7 +66,7 @@ def terminal#togglePopup#main() #{{{2
     var term_winid: number
     [term_bufnr, term_winid] = Popup_create(bufnr, opts)
 
-    if !has_key(popup, 'bufnr')
+    if !popup->has_key('bufnr')
         popup.bufnr = term_bufnr
     endif
     popup.winid = term_winid
@@ -220,7 +220,7 @@ def PreserveView() #{{{2
     # Besides, it can only work when you re-display a buffer in the same window.
     # That's not what is happening here; we re-display a buffer in a *new* window.
     #}}}
-    if has_key(popup, 'view')
+    if popup->has_key('view')
         winrestview(popup.view)
     endif
 enddef
@@ -238,13 +238,13 @@ def GetOpts(): dict<any> #{{{2
     # and execute  `:LogEvents`, then toggle  the popup terminal window  on, you
     # should see that the border is wrong.
     #}}}
-    var line: number
+    var lnum: number
     var col: number
     var width: number
     var height: number
-    [line, col, width, height] = GetGeometry()
+    [lnum, col, width, height] = GetGeometry()
     var opts: dict<any> = {
-        line: line,
+        line: lnum,
         col: col,
         width: width,
         height: height,
@@ -262,10 +262,10 @@ def GetGeometry(): list<number> #{{{2
     # set to `&lines`, which  is wrong; the top of the popup  window can't be on
     # the last line of the screen; the lowest it can be is `&lines - height`.
     #}}}
-    var line: number = float2nr(OPTS.yoffset * (&lines - height))
+    var lnum: number = float2nr(OPTS.yoffset * (&lines - height))
     var col: number = float2nr(OPTS.xoffset * (&columns - width))
 
-    return [line, col, width, height]
+    return [lnum, col, width, height]
 enddef
 
 def IsOpenOnCurrentTabpage(): bool #{{{2

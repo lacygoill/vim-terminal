@@ -54,7 +54,7 @@ enddef
 #}}}1
 # Core {{{1
 def OpenManpage() #{{{2
-    var page: string = expand('%:p')->matchstr('man://\zs.*')
+    var page: string = expand('%:p')->substitute('^man://', '', '')
     # Why `json_encode()` instead of `string()`?{{{
     #
     # The man page must be surrounded by double quotes, not single quotes.
