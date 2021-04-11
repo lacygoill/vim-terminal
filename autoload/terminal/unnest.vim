@@ -49,7 +49,7 @@ def terminal#unnest#main() #{{{2
     # The buffer which is opened in the outer Vim is empty.
     # Delaying `:qa!` fixes the issue.
     #}}}
-    timer_start(0, () => execute('qa!'))
+    timer_start(0, (_) => execute('qa!'))
 enddef
 #}}}1
 # Core {{{1

@@ -66,7 +66,7 @@ def terminal#setup() #{{{2
             buffer: true,
             from: SFILE .. ':' .. expand('<sflnum>'),
             motions: [{bwd: '[c', fwd: ']c'}]
-            })
+        })
     catch /^E8003:/
     endtry
 
@@ -268,16 +268,17 @@ def Inex(): string #{{{2
     var cwd: string = Getcwd()
     # most of the code is leveraged from a similar function in our vimrc
     var line: string = getline('.')
+    var col: number = col('.')
     var pat: string = '${\f\+}' .. '\V' .. v:fname .. '\m'
         .. '\|${\V' .. v:fname .. '\m}\f\+'
-        .. '\|\%' .. col('.') .. 'c${\f\+}\f\+'
-    var cursor_after: string = '\%(.*\%' .. col('.') .. 'c\)\@='
-    var cursor_before: string = '\%(\%' .. col('.') .. 'c.*\)\@<='
-    pat = cursor_after .. pat .. cursor_before
+        .. '\|\%' .. col .. 'c${\f\+}\f\+'
+    var cursor_is_after: string = '\%<' .. (col + 1) .. 'c'
+    var cursor_is_before: string = '\%>' .. col .. 'c'
+    pat = cursor_is_after .. '\%(' .. pat .. '\)' .. cursor_is_before
     if line =~ pat
         pat = matchstr(line, pat)
         var env: string = matchstr(pat, '\w\+')
-        return pat->substitute('${' .. env .. '}', eval('$' .. env), '')
+        return pat->substitute('${' .. env .. '}', getenv(env) ?? '', '')
     elseif line =~ cursor_after .. '=' .. cursor_before
         return v:fname->substitute('.*=', '', '')
     elseif line =~ '^\./'
@@ -292,7 +293,11 @@ def InsertRegister(): string #{{{2
     var alpha: list<string> = range(char2nr('a'), char2nr('z'))
         ->mapnew((_, v: number): string => nr2char(v))
     var other: list<string> = ['-', '*', '+', '/', '=']
-    var reg: string = getchar()->nr2char()
+    var c: any = getchar()
+    if typename(c) != 'number'
+        return ''
+    endif
+    var reg: string = nr2char(c)
     if index(numeric + alpha + other, reg) == -1
         return ''
     endif
@@ -364,11 +369,11 @@ def UseBracketedPaste(reg: string) #{{{2
         var before: string = &t_PS
         var after: string = &t_PE
         reginfo.regcontents[0] = before .. reginfo.regcontents[0]
-        reginfo.regcontents[-1] = reginfo.regcontents[-1] .. after
+        reginfo.regcontents[-1] ..= after
         # Don't use the `'l'` or `'V'` type.  It would cause the automatic execution of the pasted command.
         reginfo.regtype = 'c'
         setreg(reg, reginfo)
-        timer_start(0, () => setreg(reg, save))
+        timer_start(0, (_) => setreg(reg, save))
     endif
 enddef
 

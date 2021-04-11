@@ -25,7 +25,7 @@ var OPTS: dict<any> = {
     normal_highlight: 'Title',
     # border color when in terminal-job mode
     job_highlight: 'Comment',
-    }
+}
 
 def Sanitize()
     for key in ['width', 'height', 'xoffset', 'yoffset']
@@ -161,7 +161,7 @@ def TerminalJobMapping() #{{{2
     exe printf(
         'tno <buffer><nowait> %s <cmd>call terminal#togglePopup#main()<cr>',
         g:_termpopup_lhs
-        )
+    )
 enddef
 
 def DynamicBorderColor(winid: number) #{{{2
@@ -196,7 +196,7 @@ def DynamicBorderColor(winid: number) #{{{2
         # only  thanks to  a side-effect  of an  autocmd in  `vim-readline`,
         # whose effect can be reproduced with:
         #
-        #     au CmdlineEnter : timer_start(0, () => 0)
+        #     au CmdlineEnter : timer_start(0, (_) => 0)
         #
         # But that's probably brittle, and I don't fully understand what happens.
         # I guess we have some terminal mappings which trigger `CmdlineEnter`,
@@ -248,7 +248,7 @@ def GetOpts(): dict<any> #{{{2
         col: col,
         width: width,
         height: height,
-        }
+    }
     return extendnew(opts, {borderhighlight: OPTS.normal_highlight, term: true})
 enddef
 
