@@ -38,7 +38,7 @@ def Sanitize()
     endfor
 enddef
 Sanitize()
-lockvar OPTS
+lockvar! OPTS
 
 var popup: dict<any>
 

@@ -147,7 +147,7 @@ enddef
 
 def Wrap(lhs: string) #{{{2
     try
-        if lhs[0] =~? 'c'
+        if lhs[0] =~ '[cC]'
             norm! i
         else
             exe 'norm! ' .. lhs[0]
