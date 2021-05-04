@@ -165,7 +165,7 @@ def g:Tapi_exe(_, cmd: string) #{{{3
     # Run an arbitrary Ex command.
     # `:sil` is useful  to prevent `:lcd` from  printing the new Vim  cwd on the
     # command-line.
-    sil exe cmd
+    exe 'sil ' .. cmd
 enddef
 
 def g:Tapi_man(_, page: string) #{{{3

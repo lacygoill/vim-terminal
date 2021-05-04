@@ -117,29 +117,6 @@ def terminal#setup() #{{{2
     setl so=0 siso=0
     setl nowrap
 
-    augroup TermPreserveCwd
-        au! * <buffer>
-        # Useful to preserve the local cwd after you've temporarily loaded a different buffer in the terminal window.{{{
-        #
-        # MWE:
-        #
-        #     $ cd
-        #     $ vim
-        #     :term
-        #     $ cd /etc
-        #     $ ls
-        #     " press:  C-\ C-n
-        #     " move onto the 'group' file
-        #     " press:  gf
-        #     " press:  C-^
-        #     " move onto the 'hosts' file
-        #     " press:  gf
-        #     E447: Can't find file "/etc /hosts" in path~
-        #}}}
-        au BufWinLeave <buffer> b:_cwd = getcwd()
-        au BufWinEnter <buffer> if exists('b:_cwd') | exe 'lcd ' .. b:_cwd | endif
-    augroup END
-
     if win_gettype() == 'popup'
         SetPopup()
     endif
@@ -276,10 +253,10 @@ def Inex(): string #{{{2
     var cursor_is_before: string = '\%>' .. col .. 'c'
     pat = cursor_is_after .. '\%(' .. pat .. '\)' .. cursor_is_before
     if line =~ pat
-        pat = matchstr(line, pat)
-        var env: string = matchstr(pat, '\w\+')
+        pat = line->matchstr(pat)
+        var env: string = pat->matchstr('\w\+')
         return pat->substitute('${' .. env .. '}', getenv(env) ?? '', '')
-    elseif line =~ cursor_after .. '=' .. cursor_before
+    elseif line =~ cursor_is_after .. '=' .. cursor_is_before
         return v:fname->substitute('.*=', '', '')
     elseif line =~ '^\./'
         return v:fname->substitute('^\./', cwd, '')

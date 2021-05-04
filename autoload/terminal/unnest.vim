@@ -84,7 +84,7 @@ def WriteFilepaths(): string #{{{2
         #}}}
         getline(1, '$')->writefile(stdin)
     else
-        files = argv()->map((_, v: string): string => fnamemodify(v, ':p'))
+        files = argv()->map((_, v: string): string => v->fnamemodify(':p'))
     endif
     # Don't try to pass the file paths directly to the outer Vim.{{{
     #
