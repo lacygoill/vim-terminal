@@ -113,7 +113,7 @@ def OpenFiles(filelist: string) #{{{2
         #
         # To suppress `E89` which is raised when the current buffer is an unnamed one:
         #
-        #     E89: No write since last change for buffer 1 (add ! to override)~
+        #     E89: No write since last change for buffer 1 (add ! to override)˜
         #
         # It happens when Vim is used in a pipeline to read the output of another command:
         #
