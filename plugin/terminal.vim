@@ -56,7 +56,7 @@ exe 'nno ' .. g:_termpopup_lhs .. ' <cmd>call terminal#togglePopup#main()<cr>'
 # If you do, when we want to use one of our zsh snippets, we would need to press
 # `C-g` 4 times instead of twice.
 #}}}
-set termwinkey=<c-s>
+&termwinkey = '<c-s>'
 
 # Autocmds {{{1
 

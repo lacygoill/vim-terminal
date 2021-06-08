@@ -70,13 +70,13 @@ def terminal#setup() #{{{2
     catch /^E8003:/
     endtry
 
-    # If `'termwinkey'` is not set, Vim falls back on `C-w`.  See `:h 'twk`.
-    var twk: string = &l:twk == '' ? '<c-w>' : &l:twk
+    # If `'termwinkey'` is not set, Vim falls back on `C-w`.  See `:h 'termwinkey`.
+    var termwinkey: string = &l:termwinkey == '' ? '<c-w>' : &l:termwinkey
     # don't execute an inserted register when it contains a newline
-    exe 'tno <buffer><expr><nowait> ' .. twk .. '" <sid>InsertRegister()'
+    exe 'tno <buffer><expr><nowait> ' .. termwinkey .. '" <sid>InsertRegister()'
     # we don't want a timeout when we press the termwinkey + `C-w` to focus the next window:
     # https://vi.stackexchange.com/a/24983/17449
-    exe printf('tno <buffer><nowait> %s<c-w> %s<c-w>', twk, twk)
+    exe printf('tno <buffer><nowait> %s<c-w> %s<c-w>', termwinkey, termwinkey)
 
     # `ZF` and `mq` don't work on relative paths.{{{
     #
@@ -99,23 +99,23 @@ def terminal#setup() #{{{2
     # it can help with any shell command, not just `rg(1)`.
     # E.g., you can press `ZF` on a file output by `$ ls`.
     #}}}
-    &l:inex = expand('<SID>') .. 'Inex()'
+    &l:includeexpr = expand('<SID>') .. 'Includeexpr()'
     xno <buffer><nowait> mq <c-\><c-n><cmd>call <sid>SelectionToQf()<cr>
 
     # Rationale:{{{
     #
-    # Setting `'siso'` to a non-zero value is useless in a terminal buffer; long
-    # lines are automatically hard-wrapped.
+    # Setting `'sidescrolloff'`  to a  non-zero value is  useless in  a terminal
+    # buffer; long lines are automatically hard-wrapped.
     # Besides, it makes the window's view "dance" when pressing `l` and reaching
     # the end of a long line, which is jarring.
     #
     # ---
     #
-    # We  reset  `'so'` because  it  makes  moving  in  a terminal  buffer  more
+    # We reset `'scrolloff'`  because it makes moving in a  terminal buffer more
     # consistent with tmux copy-mode.
     #}}}
-    setl so=0 siso=0
-    setl nowrap
+    &l:scrolloff = 0 | &l:sidescrolloff = 0
+    &l:wrap = false
 
     if win_gettype() == 'popup'
         SetPopup()
@@ -146,7 +146,7 @@ def Wrap(lhs: string) #{{{2
         #     nunmap <buffer> i
         #     nunmap <buffer> a
         #     ...
-        #     setl ma
+        #     &l:modifiable = true
         #     startinsert
         #     return
         #
@@ -241,7 +241,7 @@ def KillLine() #{{{2
     feedkeys("\<c-\>\<c-n>", 'nx')
 enddef
 
-def Inex(): string #{{{2
+def Includeexpr(): string #{{{2
     var cwd: string = Getcwd()
     # most of the code is leveraged from a similar function in our vimrc
     var line: string = getline('.')
@@ -270,17 +270,13 @@ def InsertRegister(): string #{{{2
     var alpha: list<string> = range(char2nr('a'), char2nr('z'))
         ->mapnew((_, v: number): string => nr2char(v))
     var other: list<string> = ['-', '*', '+', '/', '=']
-    var c: any = getchar()
-    if typename(c) != 'number'
-        return ''
-    endif
-    var reg: string = nr2char(c)
+    var reg: string = getcharstr()
     if index(numeric + alpha + other, reg) == -1
         return ''
     endif
     UseBracketedPaste(reg)
-    var twk: string = &l:twk == '' ? "\<c-w>" : eval('"\' .. &l:twk .. '"')
-    return twk .. '"' .. reg
+    var termwinkey: string = &l:termwinkey == '' ? "\<c-w>" : eval('"\' .. &l:termwinkey .. '"')
+    return termwinkey .. '"' .. reg
 enddef
 
 def SelectionToQf() #{{{2
@@ -296,9 +292,9 @@ enddef
 def Put(): string #{{{2
     var reg: string = v:register
     UseBracketedPaste(reg)
-    var twk: string = &l:twk == '' ? "\<c-w>" : eval('"\' .. &l:twk .. '"')
+    var termwinkey: string = &l:termwinkey == '' ? "\<c-w>" : eval('"\' .. &l:termwinkey .. '"')
     FireTermenter()
-    return "i\<c-e>" .. twk .. '"' .. reg
+    return "i\<c-e>" .. termwinkey .. '"' .. reg
 enddef
 
 def SetPopup() #{{{2
@@ -306,7 +302,7 @@ def SetPopup() #{{{2
     # reset to its default value (empty string), which makes Vim use `C-w`.
     # Set the option  again, so that we  get the same experience  as in terminal
     # buffers in non-popup windows.
-    set twk<
+    set termwinkey<
 
     # suppress error: "Vim(wincmd):E994: Not allowed in a popup window"
     nno <buffer><nowait> <c-h> <nop>
