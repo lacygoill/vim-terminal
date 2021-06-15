@@ -119,7 +119,7 @@ def OpenFiles(filelist: string) #{{{2
         #
         #     $ some cmd | vim -
         #}}}
-        :%bd!
+        :% bd!
     # E937: Attempt to delete a buffer that is in use: [NULL]
     # That might happen if there are popup windows.
     catch /^Vim\%((\a\+)\)\=:E937:/

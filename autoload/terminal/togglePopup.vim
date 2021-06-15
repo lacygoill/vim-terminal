@@ -48,12 +48,12 @@ if DEBUG
 endif
 
 # Interface {{{1
-def terminal#togglePopup#main() #{{{2
+def terminal#togglePopup#main(): number #{{{2
     if popup->has_key('winid')
         # if the popup terminal is already open on the current tab page, just close it
         if IsOpenOnCurrentTabpage()
             Close()
-            return
+            return 0
         # if it's open on another tab page, close it, then re-open it in the current tab page
         else
             Close()
@@ -111,6 +111,11 @@ def terminal#togglePopup#main() #{{{2
     TerminalJobMapping()
     DynamicBorderColor(term_winid)
     PreserveView()
+
+    # We might call this function from  another arbitrary script to open a popup
+    # terminal.  Then, we might want to automatically run some shell command.
+    # IOW, we might need to send keys to the terminal buffer.
+    return term_bufnr
 enddef
 #}}}1
 # Core {{{1
