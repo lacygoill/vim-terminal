@@ -43,13 +43,13 @@ def terminal#unnest#main() #{{{2
 
     # Why the delay?{{{
     #
-    #     $ vim +term
+    #     $ vim +terminal
     #     $ trans hedge | vipe
     #
     # The buffer which is opened in the outer Vim is empty.
-    # Delaying `:qa!` fixes the issue.
+    # Delaying `:quitall!` fixes the issue.
     #}}}
-    timer_start(0, (_) => execute('qa!'))
+    timer_start(0, (_) => execute('quitall!'))
 enddef
 #}}}1
 # Core {{{1
@@ -61,7 +61,7 @@ def OpenManpage() #{{{2
     #}}}
     printf('%s]51;["call", "Tapi_man", %s]%s', "\033", json_encode(page), "\007")
         ->echoraw()
-    qa!
+    quitall!
 enddef
 
 def WriteFilepaths(): string #{{{2
@@ -70,9 +70,9 @@ def WriteFilepaths(): string #{{{2
     if expand('%:p') == ''
         var stdin: string = tempname()
         files = [stdin]
-        # Don't use `:w`.{{{
+        # Don't use `:write`.{{{
         #
-        #     exe 'w ' .. stdin
+        #     execute 'write ' .. stdin
         #
         # It would change the current buffer.
         # We want  the latter to be  unchanged, because we may  inspect its name
@@ -119,12 +119,12 @@ def OpenFiles(filelist: string) #{{{2
         #
         #     $ some cmd | vim -
         #}}}
-        :% bd!
+        :% bdelete!
     # E937: Attempt to delete a buffer that is in use: [NULL]
     # That might happen if there are popup windows.
     catch /^Vim\%((\a\+)\)\=:E937:/
     endtry
-    # open files in the outer Vim instance using `:h terminal-api`
+    # open files in the outer Vim instance using `:help terminal-api`
     printf('%s]51;["call", "Tapi_drop", "%s"]%s', "\033", filelist, "\007")
         ->echoraw()
 enddef
@@ -132,11 +132,11 @@ enddef
 def FireStdinreadpost() #{{{2
     # correctly highlight a buffer containing ansi escape sequences{{{
     #
-    #     $ vim +term
+    #     $ vim +terminal
     #     $ trans word 2>&1 | vipe >/dev/null
     #}}}
     printf('%s]51;'
-        .. '["call", "Tapi_exe", "do <nomodeline> StdinReadPost"]'
+        .. '["call", "Tapi_exe", "doautocmd <nomodeline> StdinReadPost"]'
         .. '%s', "\033", "\007")->echoraw()
 enddef
 #}}}1

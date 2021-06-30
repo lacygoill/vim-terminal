@@ -13,16 +13,16 @@ def terminal#setup() #{{{2
     # Instead, refactor your autocmds to listen to `ModeChanged`.
     #
     # See: https://github.com/vim/vim/issues/2487#issuecomment-353735824
-    # And `:h todo /modechanged`.
+    # And `:help todo /modechanged`.
     #}}}
-    nno <buffer><nowait> i <cmd>call <sid>Wrap('i')<cr>
-    nno <buffer><nowait> a <cmd>call <sid>Wrap('a')<cr>
+    nnoremap <buffer><nowait> i <Cmd>call <SID>Wrap('i')<CR>
+    nnoremap <buffer><nowait> a <Cmd>call <SID>Wrap('a')<CR>
 
-    nno <buffer><nowait> I <cmd>call <sid>Wrap('I')<cr>
-    nno <buffer><nowait> A <cmd>call <sid>Wrap('A')<cr>
+    nnoremap <buffer><nowait> I <Cmd>call <SID>Wrap('I')<CR>
+    nnoremap <buffer><nowait> A <Cmd>call <SID>Wrap('A')<CR>
 
-    nno <buffer><nowait> C <cmd>call <sid>Wrap('C')<cr>
-    nno <buffer><nowait> cc <cmd>call <sid>Wrap('cc')<cr>
+    nnoremap <buffer><nowait> C <Cmd>call <SID>Wrap('C')<CR>
+    nnoremap <buffer><nowait> cc <Cmd>call <SID>Wrap('cc')<CR>
 
     # Let us paste a register like we would in a regular buffer (e.g. `"ap`).{{{
     #
@@ -46,22 +46,22 @@ def terminal#setup() #{{{2
     # As a result, Vim automatically executes  any text whenever it encounters a
     # newline.  We don't want that; we just want to insert some text.
     #}}}
-    nno <buffer><expr><nowait> p <sid>Put()
+    nnoremap <buffer><expr><nowait> p <SID>Put()
 
-    nno <buffer><nowait> D  <cmd>call <sid>KillLine()<cr>
-    nno <buffer><nowait> dd i<c-e><c-u><c-\><c-n>
+    nnoremap <buffer><nowait> D  <Cmd>call <SID>KillLine()<CR>
+    nnoremap <buffer><nowait> dd i<C-E><C-U><C-\><C-N>
 
-    xno <buffer><nowait> c <nop>
-    xno <buffer><nowait> d <nop>
-    xno <buffer><nowait> p <nop>
-    xno <buffer><nowait> x <nop>
+    xnoremap <buffer><nowait> c <Nop>
+    xnoremap <buffer><nowait> d <Nop>
+    xnoremap <buffer><nowait> p <Nop>
+    xnoremap <buffer><nowait> x <Nop>
 
     noremap <buffer><expr><nowait> [c brackets#move#regex('shell_prompt', v:false)
     noremap <buffer><expr><nowait> ]c brackets#move#regex('shell_prompt', v:true)
     # Do not remove the try/catch.
-    # `sil!` cannot always suppress a thrown error in Vim9.
+    # `silent!` cannot always suppress a thrown error in Vim9.
     try
-        sil! repmap#make#repeatable({
+        silent! repmap#make#repeatable({
             mode: '',
             buffer: true,
             from: SFILE .. ':' .. expand('<sflnum>'),
@@ -70,13 +70,13 @@ def terminal#setup() #{{{2
     catch /^E8003:/
     endtry
 
-    # If `'termwinkey'` is not set, Vim falls back on `C-w`.  See `:h 'termwinkey`.
-    var termwinkey: string = &l:termwinkey == '' ? '<c-w>' : &l:termwinkey
+    # If `'termwinkey'` is not set, Vim falls back on `C-w`.  See `:help 'termwinkey`.
+    var termwinkey: string = &l:termwinkey == '' ? '<C-W>' : &l:termwinkey
     # don't execute an inserted register when it contains a newline
-    exe 'tno <buffer><expr><nowait> ' .. termwinkey .. '" <sid>InsertRegister()'
+    execute 'tnoremap <buffer><expr><nowait> ' .. termwinkey .. '" <SID>InsertRegister()'
     # we don't want a timeout when we press the termwinkey + `C-w` to focus the next window:
     # https://vi.stackexchange.com/a/24983/17449
-    exe printf('tno <buffer><nowait> %s<c-w> %s<c-w>', termwinkey, termwinkey)
+    execute printf('tnoremap <buffer><nowait> %s<C-W> %s<C-W>', termwinkey, termwinkey)
 
     # `ZF` and `mq` don't work on relative paths.{{{
     #
@@ -100,7 +100,7 @@ def terminal#setup() #{{{2
     # E.g., you can press `ZF` on a file output by `$ ls`.
     #}}}
     &l:includeexpr = expand('<SID>') .. 'Includeexpr()'
-    xno <buffer><nowait> mq <c-\><c-n><cmd>call <sid>SelectionToQf()<cr>
+    xnoremap <buffer><nowait> mq <C-\><C-N><Cmd>call <SID>SelectionToQf()<CR>
 
     # Rationale:{{{
     #
@@ -125,9 +125,9 @@ enddef
 def Wrap(lhs: string) #{{{2
     try
         if lhs[0] =~ '[cC]'
-            norm! i
+            normal! i
         else
-            exe 'norm! ' .. lhs[0]
+            execute 'normal! ' .. lhs[0]
         endif
     # Why?{{{
     #
@@ -136,7 +136,7 @@ def Wrap(lhs: string) #{{{2
     # enter insert mode.  The terminal buffer becomes a normal buffer.
     # However, it's not modifiable, so `i` raises `E21`.
     #
-    # All of this is explained at `:h E947`.
+    # All of this is explained at `:help E947`.
     #}}}
     catch /^Vim\%((\a\+)\)\=:E21:/
         # I want to edit this kind of buffer!{{{
@@ -164,7 +164,7 @@ def Wrap(lhs: string) #{{{2
         # the buffer becomes normal:
         #
         #     if action == 'enable'
-        #         nno <buffer><nowait> D i<c-k><c-\><c-n>
+        #         nnoremap <buffer><nowait> D i<C-K><C-\><C-N>
         #         ...
         #     elseif action == 'disable'
         #         nunmap <buffer> D
@@ -208,20 +208,20 @@ def Wrap(lhs: string) #{{{2
     if lhs == 'C'
         var startofline: string = term_getline('', '.')
             ->matchstr('٪ \zs.*\%' .. col('.') .. 'c')
-        term_sendkeys('', "\<c-e>\<c-u>" .. startofline)
+        term_sendkeys('', "\<C-E>\<C-U>" .. startofline)
         return
     endif
     var keys: string = {
-        I: "\<c-a>",
-        A: "\<c-e>",
-        cc: "\<c-e>\<c-u>",
+        I: "\<C-A>",
+        A: "\<C-E>",
+        cc: "\<C-E>\<C-U>",
         }[lhs]
     term_sendkeys('', keys)
 enddef
 
 def terminal#fireTermleave() #{{{2
     if exists('#User#TermLeave')
-        do <nomodeline> User TermLeave
+        doautocmd <nomodeline> User TermLeave
     endif
 enddef
 #}}}1
@@ -232,13 +232,13 @@ def KillLine() #{{{2
     var jobpos: list<any> = term_getcursor(buf)
     var offcol: number = jobpos[1] - vimpos[2]
     var offline: number = jobpos[0] - vimpos[1]
-    norm! i
-    var keys: string = repeat("\<left>", offcol)
-        .. repeat("\<up>", offline)
-        .. "\<c-k>"
+    normal! i
+    var keys: string = repeat("\<Left>", offcol)
+        .. repeat("\<Up>", offline)
+        .. "\<C-K>"
     term_sendkeys(buf, keys)
     term_wait(buf, 50)
-    feedkeys("\<c-\>\<c-n>", 'nx')
+    feedkeys("\<C-\>\<C-N>", 'nx')
 enddef
 
 def Includeexpr(): string #{{{2
@@ -275,7 +275,7 @@ def InsertRegister(): string #{{{2
         return ''
     endif
     UseBracketedPaste(reg)
-    var termwinkey: string = &l:termwinkey == '' ? "\<c-w>" : eval('"\' .. &l:termwinkey .. '"')
+    var termwinkey: string = &l:termwinkey == '' ? "\<C-W>" : eval('"\' .. &l:termwinkey .. '"')
     return termwinkey .. '"' .. reg
 enddef
 
@@ -286,15 +286,15 @@ def SelectionToQf() #{{{2
     var lines: list<string> = getline(lnum1, lnum2)
         ->map((_, v: string): string => cwd .. v)
     setqflist([], ' ', {lines: lines, title: ':' .. lnum1 .. ',' .. lnum2 .. 'cgetbuffer'})
-    cw
+    cwindow
 enddef
 
 def Put(): string #{{{2
     var reg: string = v:register
     UseBracketedPaste(reg)
-    var termwinkey: string = &l:termwinkey == '' ? "\<c-w>" : eval('"\' .. &l:termwinkey .. '"')
+    var termwinkey: string = &l:termwinkey == '' ? "\<C-W>" : eval('"\' .. &l:termwinkey .. '"')
     FireTermenter()
-    return "i\<c-e>" .. termwinkey .. '"' .. reg
+    return "i\<C-E>" .. termwinkey .. '"' .. reg
 enddef
 
 def SetPopup() #{{{2
@@ -305,16 +305,16 @@ def SetPopup() #{{{2
     set termwinkey<
 
     # suppress error: "Vim(wincmd):E994: Not allowed in a popup window"
-    nno <buffer><nowait> <c-h> <nop>
-    nno <buffer><nowait> <c-j> <nop>
-    nno <buffer><nowait> <c-k> <nop>
-    nno <buffer><nowait> <c-l> <nop>
+    nnoremap <buffer><nowait> <C-H> <Nop>
+    nnoremap <buffer><nowait> <C-J> <Nop>
+    nnoremap <buffer><nowait> <C-K> <Nop>
+    nnoremap <buffer><nowait> <C-L> <Nop>
 enddef
 #}}}1
 # Utilities {{{1
 def FireTermenter() #{{{2
     if exists('#User#TermEnter')
-        do <nomodeline> User TermEnter
+        doautocmd <nomodeline> User TermEnter
     endif
 enddef
 

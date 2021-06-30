@@ -75,7 +75,7 @@ def terminal#togglePopup#main(): number #{{{2
     # Otherwise, when you toggle the popup window on, you get a different buffer
     # (after every toggling).
     #}}}
-    au BufWipeout <buffer> ++once popup = {}
+    autocmd BufWipeout <buffer> ++once popup = {}
     # Necessary if we close the popup with a mapping which doesn't invoke this function.{{{
     #
     # A mapping which closes the popup via a simple `popup_close()`.
@@ -106,7 +106,7 @@ def terminal#togglePopup#main(): number #{{{2
     # path),  you may  encounter all  sorts  of weird  issues (cursor  position,
     # `popup_close()` failure, ...).
     #}}}
-    au WinLeave * ++once sil! remove(popup, 'winid')
+    autocmd WinLeave * ++once silent! remove(popup, 'winid')
 
     TerminalJobMapping()
     DynamicBorderColor(term_winid)
@@ -161,10 +161,10 @@ def TerminalJobMapping() #{{{2
     # when you press `C-g C-g`, it gets remapped and executed immediately.
     #}}}
     var key: string = g:_termpopup_lhs->matchstr('^<[^>]*>')
-    exe 'tno <buffer><nowait> ' .. repeat(key, 2) .. ' ' .. repeat(key, 2)
+    execute 'tnoremap <buffer><nowait> ' .. repeat(key, 2) .. ' ' .. repeat(key, 2)
 
-    exe printf(
-        'tno <buffer><nowait> %s <cmd>call terminal#togglePopup#main()<cr>',
+    execute printf(
+        'tnoremap <buffer><nowait> %s <Cmd>call terminal#togglePopup#main()<CR>',
         g:_termpopup_lhs
     )
 enddef
@@ -173,7 +173,7 @@ def DynamicBorderColor(winid: number) #{{{2
     augroup DynamicBorderColor
         var cmd: string = printf('if win_getid() == %d | popup_setoptions(%d, %s) | endif',
             winid, winid, {borderhighlight: [OPTS.job_highlight]})
-        exe 'au! User TermEnter ' .. cmd
+        execute 'autocmd! User TermEnter ' .. cmd
         # Why inspecting `mode()`?{{{
         #
         # Initially, the border is highlighted by `OPTS.normal_highlight`.
@@ -189,7 +189,7 @@ def DynamicBorderColor(winid: number) #{{{2
         # remembers the last mode you were in.
         #}}}
         if mode() == 't'
-            exe cmd
+            execute cmd
         endif
         # Why `:redraw`?{{{
         #
@@ -201,13 +201,13 @@ def DynamicBorderColor(winid: number) #{{{2
         # only  thanks to  a side-effect  of an  autocmd in  `vim-readline`,
         # whose effect can be reproduced with:
         #
-        #     au CmdlineEnter : timer_start(0, (_) => 0)
+        #     autocmd CmdlineEnter : timer_start(0, (_) => 0)
         #
         # But that's probably brittle, and I don't fully understand what happens.
         # I guess we have some terminal mappings which trigger `CmdlineEnter`,
         # which in turn invoke the timer, which in turn causes the redraw.
         #}}}
-        exe 'au! User TermLeave '
+        execute 'autocmd! User TermLeave '
             .. printf('if win_getid() == %d | popup_setoptions(%d, %s) | redraw | endif',
             winid, winid, {borderhighlight: [OPTS.normal_highlight]})
     augroup END

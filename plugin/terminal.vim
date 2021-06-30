@@ -15,7 +15,7 @@ var loaded = true
 # Its effect  is local  to a given  buffer, so if  you want  to apply it  to all
 # terminal buffers, you'll need an autocmd.
 #
-#     au TerminalWinOpen * expand('<abuf>')->str2nr()->term_setapi('Myapi_')
+#     autocmd TerminalWinOpen * expand('<abuf>')->str2nr()->term_setapi('Myapi_')
 #}}}1
 
 import Catch from 'lg.vim'
@@ -36,8 +36,8 @@ import Catch from 'lg.vim'
 # *and* from Terminal-Job mode with the same key.
 # Have a look at `TerminalJobMapping()` in `autoload/terminal/toggle_popup.vim`.
 #}}}
-g:_termpopup_lhs = '<c-g><c-j>'
-exe 'nno ' .. g:_termpopup_lhs .. ' <cmd>call terminal#togglePopup#main()<cr>'
+g:_termpopup_lhs = '<C-G><C-J>'
+execute 'nnoremap ' .. g:_termpopup_lhs .. ' <Cmd>call terminal#togglePopup#main()<CR>'
 
 # Options {{{1
 
@@ -48,20 +48,20 @@ exe 'nno ' .. g:_termpopup_lhs .. ' <cmd>call terminal#togglePopup#main()<cr>'
 #}}}
 # Why do yo change its value?{{{
 #
-# By default,  its value is  `<c-w>`; so  you can press  `C-w :` to  enter Vim's
-# command-line; but I don't like that `c-w` should delete the previous word.
+# By default,  its value is  `<C-W>`; so  you can press  `C-w :` to  enter Vim's
+# command-line; but I don't like that `C-w` should delete the previous word.
 #}}}
 # Warning: do *not* use `C-g`{{{
 #
 # If you do, when we want to use one of our zsh snippets, we would need to press
 # `C-g` 4 times instead of twice.
 #}}}
-&termwinkey = '<c-s>'
+&termwinkey = '<C-S>'
 
 # Autocmds {{{1
 
-augroup MyTerminal | au!
-    au TerminalWinOpen * terminal#setup()
+augroup MyTerminal | autocmd!
+    autocmd TerminalWinOpen * terminal#setup()
 augroup END
 
 # Why do you install a mapping whose lhs is `Esc Esc`?{{{
@@ -91,13 +91,13 @@ augroup END
 #
 # Maybe something like this:
 #
-#     exe "set <m-[>=\e["
-#     tno <m-[> <esc>
+#     execute "set <M-[>=\<Esc>["
+#     tnoremap <M-[> <Esc>
 #
 # It doesn't work, but you get the idea.
 #}}}
-augroup InstallEscapeMappingInTerminal | au!
-    # Do *not* install this mapping:  `tno <buffer> <esc>: <c-\><c-n>:`{{{
+augroup InstallEscapeMappingInTerminal | autocmd!
+    # Do *not* install this mapping:  `tnoremap <buffer> <Esc>: <C-\><C-N>:`{{{
     #
     # Watch:
     #
@@ -108,9 +108,9 @@ augroup InstallEscapeMappingInTerminal | au!
     #
     # The meta keysyms are disabled.
             # }}}
-    au TerminalWinOpen * tno <buffer><nowait> <esc><esc> <c-\><c-n><cmd>call terminal#fireTermleave()<cr>
-    au TerminalWinOpen * tno <buffer><nowait> <c-\><c-n> <c-\><c-n><cmd>call terminal#fireTermleave()<cr>
-    au FileType fzf tunmap <buffer> <esc><esc>
+    autocmd TerminalWinOpen * tnoremap <buffer><nowait> <Esc><Esc> <C-\><C-N><Cmd>call terminal#fireTermleave()<CR>
+    autocmd TerminalWinOpen * tnoremap <buffer><nowait> <C-\><C-N> <C-\><C-N><Cmd>call terminal#fireTermleave()<CR>
+    autocmd FileType fzf tunmap <buffer> <Esc><Esc>
 augroup END
 
 # We sometimes – accidentally – start a nested Vim instance inside a Vim terminal.
@@ -124,7 +124,7 @@ if !empty($VIM_TERMINAL)
     # Also, without the  autocmd, sometimes, a bunch of empty  lines are written
     # in the terminal.
     #}}}
-    au VimEnter * terminal#unnest#main()
+    autocmd VimEnter * terminal#unnest#main()
 endif
 
 # Functions {{{1
@@ -151,7 +151,7 @@ def g:Tapi_drop(_, file_listing: string) #{{{3
         if win_gettype() == 'popup'
             win_getid()->popup_close()
         endif
-        exe 'drop ' .. files
+        execute 'drop ' .. files
             ->map((_, v: string): string => fnameescape(v))
             ->join()
     # E994, E863, ...
@@ -163,19 +163,19 @@ enddef
 
 def g:Tapi_exe(_, cmd: string) #{{{3
     # Run an arbitrary Ex command.
-    # `:sil` is useful  to prevent `:lcd` from  printing the new Vim  cwd on the
+    # `:silent` is useful to prevent `:lcd` from printing the new Vim cwd on the
     # command-line.
-    exe 'sil ' .. cmd
+    execute 'silent ' .. cmd
 enddef
 
 def g:Tapi_man(_, page: string) #{{{3
     # open manpage in outer Vim
     if exists(':Man') != 2
-        echom ':Man needs to be installed'
+        echomsg ':Man needs to be installed'
         return
     endif
     try
-        exe 'tab Man ' .. page
+        execute 'tab Man ' .. page
     catch
         Catch()
         return
