@@ -1,8 +1,5 @@
 vim9script noclear
 
-if exists('loaded') | finish | endif
-var loaded = true
-
 import Catch from 'lg.vim'
 const SFILE: string = expand('<sfile>:p')
 
@@ -56,19 +53,7 @@ def terminal#setup() #{{{2
     xnoremap <buffer><nowait> p <Nop>
     xnoremap <buffer><nowait> x <Nop>
 
-    noremap <buffer><expr><nowait> [c brackets#move#regex('shell_prompt', v:false)
-    noremap <buffer><expr><nowait> ]c brackets#move#regex('shell_prompt', v:true)
-    # Do not remove the try/catch.
-    # `silent!` cannot always suppress a thrown error in Vim9.
-    try
-        silent! repmap#make#repeatable({
-            mode: '',
-            buffer: true,
-            from: SFILE .. ':' .. expand('<sflnum>'),
-            motions: [{bwd: '[c', fwd: ']c'}]
-        })
-    catch /^E8003:/
-    endtry
+    terminal#installShellPromptMappings()
 
     # If `'termwinkey'` is not set, Vim falls back on `C-w`.  See `:help 'termwinkey`.
     var termwinkey: string = &l:termwinkey == '' ? '<C-W>' : &l:termwinkey
@@ -120,6 +105,17 @@ def terminal#setup() #{{{2
     if win_gettype() == 'popup'
         SetPopup()
     endif
+enddef
+
+def terminal#installShellPromptMappings()
+# We might call this function from another plugin.
+# For example, it's useful for `vim-tmux` when we capture a pane in a Vim buffer.
+    map <buffer><nowait> ]c <Plug>(next-shell-prompt)
+    map <buffer><nowait> [c <Plug>(prev-shell-prompt)
+    noremap <buffer><expr> <Plug>(next-shell-prompt) brackets#move#regex('shell-prompt')
+    noremap <buffer><expr> <Plug>(prev-shell-prompt) brackets#move#regex('shell-prompt', v:false)
+    silent! submode#enter('shell-prompts', 'nx', 'br', ']c', '<Plug>(next-shell-prompt)')
+    silent! submode#enter('shell-prompts', 'nx', 'br', '[c', '<Plug>(prev-shell-prompt)')
 enddef
 
 def Wrap(lhs: string) #{{{2
@@ -207,7 +203,7 @@ def Wrap(lhs: string) #{{{2
     endif
     if lhs == 'C'
         var startofline: string = term_getline('', '.')
-            ->matchstr('٪ \zs.*\%' .. col('.') .. 'c')
+            ->matchstr('٪ \zs.*\%.c')
         term_sendkeys('', "\<C-E>\<C-U>" .. startofline)
         return
     endif
@@ -245,21 +241,24 @@ def Includeexpr(): string #{{{2
     var cwd: string = Getcwd()
     # most of the code is leveraged from a similar function in our vimrc
     var line: string = getline('.')
-    var col: number = col('.')
     var pat: string = '${\f\+}' .. '\V' .. v:fname .. '\m'
         .. '\|${\V' .. v:fname .. '\m}\f\+'
-        .. '\|\%' .. col .. 'c${\f\+}\f\+'
-    var cursor_is_after: string = '\%<' .. (col + 1) .. 'c'
-    var cursor_is_before: string = '\%>' .. col .. 'c'
-    pat = cursor_is_after .. '\%(' .. pat .. '\)' .. cursor_is_before
+        .. '\|\%.c${\f\+}\f\+'
+    var before_cursor: string = '\%(\%<.c\|\%.c\)'
+    var after_cursor: string = '\%>.c'
+    pat = before_cursor .. '\%(' .. pat .. '\)' .. after_cursor
+
     if line =~ pat
         pat = line->matchstr(pat)
         var env: string = pat->matchstr('\w\+')
         return pat->substitute('${' .. env .. '}', getenv(env) ?? '', '')
-    elseif line =~ cursor_is_after .. '=' .. cursor_is_before
+
+    elseif line =~ before_cursor .. '=' .. after_cursor
         return v:fname->substitute('.*=', '', '')
+
     elseif line =~ '^\./'
         return v:fname->substitute('^\./', cwd, '')
+
     else
         return cwd .. v:fname
     endif
@@ -284,7 +283,7 @@ def SelectionToQf() #{{{2
     var lnum1: number = line("'<")
     var lnum2: number = line("'>")
     var lines: list<string> = getline(lnum1, lnum2)
-        ->map((_, v: string): string => cwd .. v)
+        ->map((_, v: string) => cwd .. v)
     setqflist([], ' ', {lines: lines, title: ':' .. lnum1 .. ',' .. lnum2 .. 'cgetbuffer'})
     cwindow
 enddef

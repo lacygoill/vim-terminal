@@ -1,8 +1,5 @@
 vim9script noclear
 
-if exists('loaded') | finish | endif
-var loaded = true
-
 # Interface {{{1
 def terminal#unnest#main() #{{{2
     # Why do you check this again?  We already did it in `plugin/terminal.vim`...{{{
@@ -84,7 +81,7 @@ def WriteFilepaths(): string #{{{2
         #}}}
         getline(1, '$')->writefile(stdin)
     else
-        files = argv()->map((_, v: string): string => v->fnamemodify(':p'))
+        files = argv()->map((_, v: string) => v->fnamemodify(':p'))
     endif
     # Don't try to pass the file paths directly to the outer Vim.{{{
     #

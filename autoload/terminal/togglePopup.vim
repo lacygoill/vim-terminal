@@ -1,8 +1,5 @@
 vim9script noclear
 
-if exists('loaded') | finish | endif
-var loaded = true
-
 # Inspiration:
 # https://github.com/junegunn/fzf/commit/7ceb58b2aadfcf0f5e99da83626cf88d282159b2
 # https://github.com/junegunn/fzf/commit/a859aa72ee0ab6e7ae948752906483e468a501ee
@@ -62,9 +59,9 @@ def terminal#togglePopup#main(): number #{{{2
 
     var bufnr: number = get(popup, 'bufnr', -1)
     var opts: dict<any> = GetOpts()
-    var term_bufnr: number
-    var term_winid: number
-    [term_bufnr, term_winid] = Popup_create(bufnr, opts)
+    var d: dict<number> = Popup_create(bufnr, opts)
+    var term_bufnr: number = d.bufnr
+    var term_winid: number = d.winid
 
     if !popup->has_key('bufnr')
         popup.bufnr = term_bufnr

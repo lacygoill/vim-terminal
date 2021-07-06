@@ -37,7 +37,7 @@ import Catch from 'lg.vim'
 # Have a look at `TerminalJobMapping()` in `autoload/terminal/toggle_popup.vim`.
 #}}}
 g:_termpopup_lhs = '<C-G><C-J>'
-execute 'nnoremap ' .. g:_termpopup_lhs .. ' <Cmd>call terminal#togglePopup#main()<CR>'
+execute 'nnoremap <unique> ' .. g:_termpopup_lhs .. ' <Cmd>call terminal#togglePopup#main()<CR>'
 
 # Options {{{1
 
@@ -152,7 +152,7 @@ def g:Tapi_drop(_, file_listing: string) #{{{3
             win_getid()->popup_close()
         endif
         execute 'drop ' .. files
-            ->map((_, v: string): string => fnameescape(v))
+            ->map((_, v: string) => fnameescape(v))
             ->join()
     # E994, E863, ...
     catch
