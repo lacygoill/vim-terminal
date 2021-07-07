@@ -25,7 +25,7 @@ var OPTS: dict<any> = {
 }
 
 def Sanitize()
-    for key in ['width', 'height', 'xoffset', 'yoffset']
+    for key: string in ['width', 'height', 'xoffset', 'yoffset']
         if OPTS[key] < 0
             OPTS[key] = key =~ 'offset' ? 0 : 0.1
         elseif OPTS[key] > 1
