@@ -114,8 +114,8 @@ def terminal#installShellPromptMappings()
     map <buffer><nowait> [c <Plug>(prev-shell-prompt)
     noremap <buffer><expr> <Plug>(next-shell-prompt) brackets#move#regex('shell-prompt')
     noremap <buffer><expr> <Plug>(prev-shell-prompt) brackets#move#regex('shell-prompt', v:false)
-    silent! submode#enter('shell-prompts', 'nx', 'br', ']c', '<Plug>(next-shell-prompt)')
-    silent! submode#enter('shell-prompts', 'nx', 'br', '[c', '<Plug>(prev-shell-prompt)')
+    silent! execute submode#enter('shell-prompts', 'nx', 'br', ']c', '<Plug>(next-shell-prompt)')
+    silent! execute submode#enter('shell-prompts', 'nx', 'br', '[c', '<Plug>(prev-shell-prompt)')
 enddef
 
 def Wrap(lhs: string) #{{{2
